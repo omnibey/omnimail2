@@ -51,9 +51,36 @@ export default function InboxPage() {
   };
 
   useEffect(() => {
-    fetchEmails();
-    fetchInbox();
-  }, [selectedEmailFilter]);
+    let ignore = false;
+    async function init() {
+      try {
+        const url = selectedEmailFilter !== 'all'
+          ? `/api/inbox?emailAddressId=${selectedEmailFilter}`
+          : '/api/inbox?userId=user-demo-1';
+
+        const [msgsRes, emailsRes] = await Promise.all([
+          fetch(url).then(r => r.json()),
+          fetch('/api/email/generate?userId=user-demo-1').then(r => r.json()),
+        ]);
+
+        if (!ignore) {
+          if (msgsRes.messages) {
+            setMessages(msgsRes.messages);
+            if (msgsRes.messages.length > 0 && !selectedMessage) {
+              setSelectedMessage(msgsRes.messages[0]);
+            }
+          }
+          if (emailsRes.emails) setEmails(emailsRes.emails);
+        }
+      } catch (err) {
+        console.error('Failed to load inbox:', err);
+      }
+    }
+    init();
+    return () => {
+      ignore = true;
+    };
+  }, [selectedEmailFilter, selectedMessage]);
 
   const handleSelectMessage = async (msg: Message) => {
     setSelectedMessage(msg);

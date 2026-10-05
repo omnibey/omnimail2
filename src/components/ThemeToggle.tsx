@@ -1,52 +1,74 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useSyncExternalStore } from 'react';
 import { Sun, Moon } from 'lucide-react';
 
-export const ThemeToggle: React.FC = () => {
-  const [isDark, setIsDark] = useState(false);
-  const [mounted, setMounted] = useState(false);
+function getThemeSnapshot(): 'dark' | 'light' {
+  if (typeof window === 'undefined') return 'dark';
+  const attr = document.documentElement.getAttribute('data-theme');
+  if (attr === 'light' || attr === 'dark') return attr;
+  const stored = localStorage.getItem('vela-theme') || localStorage.getItem('omnimail_theme');
+  if (stored === 'light' || stored === 'dark') return stored;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
 
-  useEffect(() => {
-    setMounted(true);
-    const stored = localStorage.getItem('omnimail_theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (stored === 'dark' || (!stored && prefersDark)) {
-      setIsDark(true);
-      document.documentElement.classList.add('dark');
-    } else {
-      setIsDark(false);
-      document.documentElement.classList.remove('dark');
+function getServerSnapshot(): 'dark' | 'light' {
+  return 'dark';
+}
+
+function subscribe(callback: () => void) {
+  if (typeof window === 'undefined') return () => {};
+
+  window.addEventListener('storage', callback);
+  const observer = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      if (m.attributeName === 'data-theme' || m.attributeName === 'class') {
+        callback();
+      }
     }
-  }, []);
+  });
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme', 'class'],
+  });
+
+  return () => {
+    window.removeEventListener('storage', callback);
+    observer.disconnect();
+  };
+}
+
+export const ThemeToggle: React.FC = () => {
+  const theme = useSyncExternalStore(subscribe, getThemeSnapshot, getServerSnapshot);
 
   const toggleTheme = () => {
-    if (isDark) {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('omnimail_theme', 'light');
-      setIsDark(false);
-    } else {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    if (next === 'dark') {
       document.documentElement.classList.add('dark');
-      localStorage.setItem('omnimail_theme', 'dark');
-      setIsDark(true);
+      document.documentElement.classList.remove('light');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.add('light');
     }
+    localStorage.setItem('vela-theme', next);
+    localStorage.setItem('omnimail_theme', next);
   };
 
-  if (!mounted) {
-    return <div className="w-9 h-9" />;
-  }
+  const isDark = theme === 'dark';
 
   return (
     <button
       onClick={toggleTheme}
-      className="relative p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+      type="button"
+      className="relative flex items-center justify-center w-9 h-9 rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t1)] hover:text-[var(--t0)] hover:border-[var(--line-2)] transition-all cursor-pointer select-none active:scale-95"
       title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
       aria-label="Toggle theme"
     >
       {isDark ? (
-        <Sun className="w-5 h-5 text-amber-400 transition-transform rotate-0 scale-100" />
+        <Sun className="w-4 h-4 text-[#f7b84e] transition-transform duration-300 hover:rotate-45" />
       ) : (
-        <Moon className="w-5 h-5 text-indigo-600 transition-transform rotate-0 scale-100" />
+        <Moon className="w-4 h-4 text-[#6a4cff] transition-transform duration-300 hover:-rotate-12" />
       )}
     </button>
   );

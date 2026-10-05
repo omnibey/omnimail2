@@ -1,7 +1,7 @@
 import { 
   UserProfile, EmailAddress, Message, CreditPackage, 
   CreditTransaction, Payment, AuditLog, CompatibilityItem, 
-  PaymentSubmissionInput, PaymentMethod 
+  PaymentSubmissionInput 
 } from '@/types';
 import { 
   INITIAL_PACKAGES, INITIAL_USERS, INITIAL_EMAILS, 

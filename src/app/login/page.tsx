@@ -1,52 +1,32 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { createClient } from '@/lib/supabase/client';
+import { GoogleAuthModal } from '@/components/GoogleAuthModal';
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const errorParam = searchParams.get('error');
+  const initialOauthError = errorParam
+    ? (errorParam === 'oauth_failed'
+        ? 'Google authentication was cancelled or interrupted. You can sign in using the Google selector.'
+        : decodeURIComponent(errorParam))
+    : null;
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [googleModalOpen, setGoogleModalOpen] = useState(false);
   const router = useRouter();
 
-  const handleGoogleLogin = async () => {
-    try {
-      setIsLoading(true);
-      setErrorMsg(null);
-      const supabase = createClient();
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/api/auth/callback`,
-        },
-      });
-
-      if (error) {
-        if (
-          error.message.toLowerCase().includes('provider is not enabled') ||
-          error.message.toLowerCase().includes('unsupported provider')
-        ) {
-          setErrorMsg(
-            'Google OAuth is not enabled in your Supabase project yet. Go to Supabase Dashboard -> Authentication -> Providers -> Google, enable it, and add your Google Client ID & Secret.'
-          );
-        } else {
-          setErrorMsg(error.message);
-        }
-        setIsLoading(false);
-      }
-    } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : 'Google OAuth failed');
-      setIsLoading(false);
-    }
-  };
+  const activeError = errorMsg ?? initialOauthError;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,13 +52,12 @@ export default function LoginPage() {
       }
 
       setSuccessMsg('Login successful! Redirecting to your dashboard...');
-      // Set session cookies for RBAC
       document.cookie = `omnimail_session=${data.user.id}; path=/; max-age=86400`;
       document.cookie = `omnimail_role=${data.user.role}; path=/; max-age=86400`;
 
       setTimeout(() => {
         router.push(data.redirectTo || '/dashboard');
-      }, 700);
+      }, 500);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Login failed';
       setErrorMsg(msg);
@@ -98,86 +77,87 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center p-4 py-12 bg-slate-50 dark:bg-slate-950 transition-colors">
-      <div className="w-full max-w-md">
-        {/* Brand Header */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 group mb-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/30 group-hover:scale-105 transition-transform">
-              <Mail className="h-5 w-5" />
-            </div>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Omni<span className="text-indigo-600 dark:text-indigo-400">Mail</span>
-            </span>
-          </Link>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white">
-            Welcome back to OmniBey
-          </h1>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Sign in to manage temporary mailboxes, OTPs, and credits
-          </p>
-        </div>
+    <div className="relative min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-[var(--bg-0)] text-[var(--t0)] transition-colors overflow-hidden">
+      {/* Vela Ambient Glow Background */}
+      <div className="pointer-events-none absolute left-1/2 top-1/4 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-60" style={{ background: 'radial-gradient(circle, var(--acc-soft), transparent 68%)' }} />
 
-        <Card className="p-6 md:p-8 shadow-xl shadow-slate-900/5">
-          {errorMsg && (
-            <div className="mb-5 flex items-center gap-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 p-3 text-xs text-rose-700 dark:text-rose-300">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
-              <span>{errorMsg}</span>
+      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center px-4">
+        <Link href="/" className="inline-flex items-center gap-3 group mb-4">
+          <div className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[var(--acc)] text-white shadow-lg shadow-[var(--acc-soft)] group-hover:scale-105 transition-transform">
+            <Mail className="h-6 w-6" />
+          </div>
+          <span className="text-2xl font-extrabold tracking-tight text-[var(--t0)]">
+            Omni<span className="text-[var(--acc)]">Mail</span>
+          </span>
+        </Link>
+        <h2 className="text-2xl font-extrabold tracking-tight text-[var(--t0)]">
+          Welcome back to OmniMail
+        </h2>
+        <p className="mt-2 text-xs text-[var(--t1)]">
+          Temporary disposable mailboxes with instantaneous OTP extraction.
+        </p>
+      </div>
+
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 relative z-10">
+        <Card className="p-6 sm:p-8 border border-[var(--line)] bg-[var(--bg-2)] shadow-[var(--shadow)] backdrop-blur-xl">
+          {activeError && (
+            <div className="mb-5 p-3.5 rounded-[12px] bg-[#f76d7d]/15 border border-[#f76d7d]/30 text-xs text-[#f76d7d] flex items-start gap-2.5 animate-fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#f76d7d]" />
+              <div className="flex-1 font-medium">{activeError}</div>
             </div>
           )}
 
           {successMsg && (
-            <div className="mb-5 flex items-center gap-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 p-3 text-xs text-emerald-700 dark:text-emerald-300">
-              <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              <span>{successMsg}</span>
+            <div className="mb-5 p-3.5 rounded-[12px] bg-[#33d493]/15 border border-[#33d493]/30 text-xs text-[#33d493] flex items-center gap-2 animate-fade-in">
+              <ShieldCheck className="w-4 h-4 shrink-0 text-[#33d493]" />
+              <div className="font-semibold">{successMsg}</div>
             </div>
           )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              <label className="block text-xs font-bold text-[var(--t1)] mb-1.5 uppercase tracking-wider">
                 Email Address
               </label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Mail className="w-4 h-4 text-[var(--t2)] absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="email"
                   required
-                  placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                  placeholder="user@omnibey.com"
+                  className="w-full pl-10 pr-4 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all"
                 />
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <label className="block text-xs font-bold text-[var(--t1)] uppercase tracking-wider">
                   Password
                 </label>
                 <Link
                   href="/forgot-password"
-                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+                  className="text-xs text-[var(--acc)] hover:underline font-semibold"
                 >
-                  Forgot Password?
+                  Forgot password?
                 </Link>
               </div>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Lock className="w-4 h-4 text-[var(--t2)] absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
-                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                  placeholder="••••••••••••"
+                  className="w-full pl-10 pr-10 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                  tabIndex={-1}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--t2)] hover:text-[var(--t0)]"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -192,19 +172,19 @@ export default function LoginPage() {
               isLoading={isLoading}
               rightIcon={<ArrowRight className="w-4 h-4" />}
             >
-              Sign In
+              Sign In to Account
             </Button>
           </form>
 
-          {/* Google OAuth Option */}
-          <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800/80">
+          {/* Google Login Button */}
+          <div className="mt-6 pt-5 border-t border-[var(--line)]">
             <button
               type="button"
               disabled={isLoading}
-              onClick={handleGoogleLogin}
-              className="w-full flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all active:scale-[0.98] disabled:opacity-60"
+              onClick={() => setGoogleModalOpen(true)}
+              className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-[12px] border border-[var(--line)] bg-[var(--bg-3)] hover:bg-[var(--bg-2)] hover:border-[var(--line-2)] text-xs font-bold text-[var(--t0)] transition-all active:scale-[0.98] disabled:opacity-60 shadow-sm cursor-pointer"
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                 <path
                   fill="#4285F4"
                   d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.64-5.2 3.64-9.15z"
@@ -227,33 +207,49 @@ export default function LoginPage() {
           </div>
 
           {/* Quick Demo Credentials for Reviewers */}
-          <div className="mt-5 p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-500">
-            <span className="font-semibold text-slate-700 dark:text-slate-300">Quick Test Autofill: </span>
-            <button
-              type="button"
-              onClick={() => handleQuickDemoLogin('user')}
-              className="text-indigo-600 dark:text-indigo-400 font-medium hover:underline mr-2"
-            >
-              Demo User
-            </button>
-            <span>•</span>
-            <button
-              type="button"
-              onClick={() => handleQuickDemoLogin('admin')}
-              className="text-amber-600 dark:text-amber-400 font-medium hover:underline ml-2"
-            >
-              Admin (Root)
-            </button>
+          <div className="mt-5 p-3 rounded-[11px] bg-[var(--bg-3)] border border-[var(--line)] text-[11px] text-[var(--t2)] flex items-center justify-between">
+            <span className="font-bold text-[var(--t1)]">Quick Demo:</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleQuickDemoLogin('user')}
+                className="text-[var(--acc)] font-bold hover:underline"
+              >
+                User (Demo)
+              </button>
+              <span>•</span>
+              <button
+                type="button"
+                onClick={() => handleQuickDemoLogin('admin')}
+                className="text-[#f7b84e] font-bold hover:underline"
+              >
+                Admin (Root)
+              </button>
+            </div>
           </div>
         </Card>
 
-        <p className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
-          Don&apos;t have an account yet?{' '}
-          <Link href="/signup" className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
-            Sign Up (15 Free Credits)
+        <p className="mt-6 text-center text-xs text-[var(--t2)]">
+          Don&apos;t have an account?{' '}
+          <Link href="/signup" className="font-bold text-[var(--acc)] hover:underline">
+            Create an account for free
           </Link>
         </p>
       </div>
+
+      {/* Google Auth Modal */}
+      <GoogleAuthModal
+        isOpen={googleModalOpen}
+        onClose={() => setGoogleModalOpen(false)}
+      />
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[var(--bg-0)] flex items-center justify-center" />}>
+      <LoginForm />
+    </Suspense>
   );
 }

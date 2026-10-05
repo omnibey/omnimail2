@@ -1,6 +1,6 @@
 import { EmailProviderCode } from '@/types';
 import { IEmailProvider } from './EmailProvider.interface';
-import { OmniBeyProvider, defaultEmailProvider } from './OmniBeyProvider';
+import { defaultEmailProvider } from './OmniBeyProvider';
 
 export class EmailProviderRegistry {
   private static providers: Map<EmailProviderCode, IEmailProvider> = new Map();

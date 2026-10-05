@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, Inbox, Mail, History, 
-  Coins, CreditCard, User, Settings, LogOut, ArrowLeft
+  Coins, CreditCard, User, Settings, ArrowLeft, LogOut
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -21,11 +21,14 @@ export const DashboardSidebar: React.FC<SidebarProps> = ({
 }) => {
   const pathname = usePathname();
 
-  const links = [
+  const coreLinks = [
     { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Live Inbox', href: '/dashboard/inbox', icon: Inbox, badge: 'Live' },
     { label: 'Mailboxes', href: '/dashboard/emails', icon: Mail },
-    { label: 'Usage History', href: '/dashboard/history', icon: History },
+    { label: 'Usage Analytics', href: '/dashboard/history', icon: History },
+  ];
+
+  const billingLinks = [
     { label: 'Credits & Top-Up', href: '/dashboard/credits', icon: Coins },
     { label: 'Payment Orders', href: '/dashboard/payments', icon: CreditCard },
     { label: 'Profile', href: '/dashboard/profile', icon: User },
@@ -33,78 +36,113 @@ export const DashboardSidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className="w-full md:w-64 shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 flex flex-col justify-between p-4 transition-colors">
-      <div className="space-y-6">
+    <aside className="w-full md:w-64 shrink-0 border-r border-[var(--line)] bg-[var(--bg-1)] flex flex-col justify-between p-4 transition-colors">
+      <div className="space-y-5">
         {/* User Mini Card */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3.5">
+        <div className="rounded-[14px] border border-[var(--line)] bg-[var(--bg-2)] p-3.5 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white font-bold text-sm shadow-sm">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[var(--acc)] text-white font-extrabold text-sm shadow-md shadow-[var(--acc-soft)]">
               {userName.charAt(0)}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+              <div className="truncate text-xs font-extrabold text-[var(--t0)]">
                 {userName}
               </div>
-              <div className="truncate text-xs text-slate-500 dark:text-slate-400">
+              <div className="truncate text-[11px] text-[var(--t2)] font-mono">
                 {userEmail}
               </div>
             </div>
           </div>
 
-          <div className="mt-3 flex items-center justify-between pt-2.5 border-t border-slate-200/80 dark:border-slate-800/80 text-xs">
-            <span className="text-slate-500 dark:text-slate-400">Balance:</span>
-            <div className="flex items-center gap-1 font-bold text-indigo-600 dark:text-indigo-400">
-              <Coins className="w-3.5 h-3.5" />
-              <span>{userCredits} Credits</span>
+          <div className="mt-3 flex items-center justify-between pt-2.5 border-t border-[var(--line)] text-xs">
+            <span className="text-[var(--t2)] text-[11px]">Available Credits:</span>
+            <div className="flex items-center gap-1 font-mono font-bold text-[var(--acc)] bg-[var(--acc-soft)] px-2 py-0.5 rounded-[6px]">
+              <Coins className="w-3 h-3" />
+              <span>{userCredits}</span>
             </div>
           </div>
         </div>
 
-        {/* Navigation Items */}
-        <nav className="space-y-1">
-          {links.map((link) => {
-            const Icon = link.icon;
-            const isActive = pathname === link.href;
+        {/* Dashboards Category */}
+        <div>
+          <div className="px-3 pb-2 text-[10.5px] font-extrabold tracking-wider uppercase text-[var(--t2)]">
+            Mail Services
+          </div>
+          <nav className="space-y-1">
+            {coreLinks.map((link) => {
+              const Icon = link.icon;
+              const isActive = pathname === link.href;
 
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive
-                    ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 font-semibold shadow-sm'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`} />
-                  <span>{link.label}</span>
-                </div>
-                {link.badge && (
-                  <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20">
-                    {link.badge}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`flex items-center justify-between px-3 py-2 rounded-[11px] text-[13px] font-semibold transition-all ${
+                    isActive
+                      ? 'bg-[var(--acc-soft)] text-[var(--acc)] font-bold shadow-sm'
+                      : 'text-[var(--t1)] hover:bg-[var(--bg-3)] hover:text-[var(--t0)]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-[var(--acc)]' : 'text-[var(--t2)]'}`} />
+                    <span>{link.label}</span>
+                  </div>
+                  {link.badge && (
+                    <span className="px-1.5 py-0.2 text-[10px] font-mono font-bold rounded-[6px] bg-[var(--ok-soft)] text-[var(--ok)] border border-[var(--ok)]/30">
+                      {link.badge}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Account & Billing */}
+        <div>
+          <div className="px-3 pb-2 text-[10.5px] font-extrabold tracking-wider uppercase text-[var(--t2)]">
+            Account & Top-Up
+          </div>
+          <nav className="space-y-1">
+            {billingLinks.map((link) => {
+              const Icon = link.icon;
+              const isActive = pathname === link.href;
+
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`flex items-center justify-between px-3 py-2 rounded-[11px] text-[13px] font-semibold transition-all ${
+                    isActive
+                      ? 'bg-[var(--acc-soft)] text-[var(--acc)] font-bold shadow-sm'
+                      : 'text-[var(--t1)] hover:bg-[var(--bg-3)] hover:text-[var(--t0)]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-[var(--acc)]' : 'text-[var(--t2)]'}`} />
+                    <span>{link.label}</span>
+                  </div>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
       </div>
 
       {/* Bottom links */}
-      <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-2">
+      <div className="pt-4 border-t border-[var(--line)] space-y-1.5">
         <Link
           href="/"
-          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="flex items-center gap-2.5 px-3 py-2 rounded-[11px] text-xs font-semibold text-[var(--t1)] hover:text-[var(--t0)] hover:bg-[var(--bg-3)] transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back to Landing Page</span>
         </Link>
         <Link
           href="/login"
-          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+          className="flex items-center gap-2.5 px-3 py-2 rounded-[11px] text-xs font-semibold text-[var(--bad)] hover:bg-[var(--bad-soft)] transition-colors"
         >
-          <LogOut className="w-4 h-4" />
+          <LogOut className="w-3.5 h-3.5" />
           <span>Sign Out</span>
         </Link>
       </div>

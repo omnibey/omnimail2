@@ -29,7 +29,20 @@ export default function AdminUsersPage() {
   };
 
   useEffect(() => {
-    fetchUsers();
+    let ignore = false;
+    async function init() {
+      try {
+        const res = await fetch('/api/admin/metrics');
+        const data = await res.json();
+        if (!ignore && data.recentUsers) setUsers(data.recentUsers);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    init();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const handleAdjustCredits = async (e: React.FormEvent) => {

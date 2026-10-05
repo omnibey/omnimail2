@@ -32,7 +32,20 @@ export default function AdminPaymentsPage() {
   };
 
   useEffect(() => {
-    fetchPayments();
+    let ignore = false;
+    async function init() {
+      try {
+        const res = await fetch('/api/admin/metrics');
+        const data = await res.json();
+        if (!ignore && data.recentPayments) setPayments(data.recentPayments);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    init();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const handleApprove = async (paymentId: string) => {

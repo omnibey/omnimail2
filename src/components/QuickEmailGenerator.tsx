@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Copy, Check, RefreshCw, Clock, PlusCircle, 
-  Send, Sparkles, AlertCircle, Mail 
+  Send, Sparkles, Mail 
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -16,63 +16,54 @@ interface QuickEmailGeneratorProps {
   onMessageReceived?: () => void;
 }
 
+function formatCountdown(expiresAt: string, now: number): { formatted: string; isExpiringSoon: boolean; isExpired: boolean } {
+  const diff = new Date(expiresAt).getTime() - now;
+  if (diff <= 0) {
+    return { formatted: '00:00', isExpiringSoon: true, isExpired: true };
+  }
+  const totalSeconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return {
+    formatted: `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`,
+    isExpiringSoon: minutes < 5,
+    isExpired: false,
+  };
+}
+
 export const QuickEmailGenerator: React.FC<QuickEmailGeneratorProps> = ({
   initialEmail,
   userId = 'user-demo-1',
   onEmailChanged,
   onMessageReceived,
 }) => {
-  const [currentEmail, setCurrentEmail] = useState<EmailAddress | null>(initialEmail || null);
+  const [generatedEmail, setGeneratedEmail] = useState<EmailAddress | null>(null);
   const [copied, setCopied] = useState(false);
-  const [timeLeft, setTimeLeft] = useState<string>('00:00');
-  const [isExpiringSoon, setIsExpiringSoon] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExtending, setIsExtending] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
-  const [serviceTag, setServiceTag] = useState('');
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  const [now, setNow] = useState<number>(() => Date.now());
 
-  // If initialEmail changes, update state
+  const currentEmail = generatedEmail ?? initialEmail ?? null;
+
+  // Real-time clock tick for smooth countdown
   useEffect(() => {
-    if (initialEmail) {
-      setCurrentEmail(initialEmail);
-    }
-  }, [initialEmail]);
-
-  // Countdown timer calculation
-  useEffect(() => {
-    if (!currentEmail || currentEmail.status !== 'active') {
-      setTimeLeft('Expired');
-      return;
-    }
-
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const expiry = new Date(currentEmail.expires_at).getTime();
-      const diff = expiry - now;
-
-      if (diff <= 0) {
-        setTimeLeft('00:00');
-        setIsExpiringSoon(true);
-        setCurrentEmail(prev => prev ? { ...prev, status: 'expired' } : null);
-        clearInterval(interval);
-      } else {
-        const totalSeconds = Math.floor(diff / 1000);
-        const minutes = Math.floor(totalSeconds / 60);
-        const seconds = totalSeconds % 60;
-        setTimeLeft(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
-        setIsExpiringSoon(minutes < 5);
-      }
+    const timer = setInterval(() => {
+      setNow(Date.now());
     }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-    return () => clearInterval(interval);
-  }, [currentEmail]);
+  const countdown = currentEmail && currentEmail.status === 'active'
+    ? formatCountdown(currentEmail.expires_at, now)
+    : { formatted: 'Expired', isExpiringSoon: true, isExpired: true };
 
   const copyToClipboard = () => {
     if (!currentEmail) return;
     navigator.clipboard.writeText(currentEmail.email_address);
     setCopied(true);
-    setFeedbackMsg('Email copied to clipboard!');
+    setFeedbackMsg('Email address copied to clipboard!');
     setTimeout(() => {
       setCopied(false);
       setFeedbackMsg(null);
@@ -87,19 +78,18 @@ export const QuickEmailGenerator: React.FC<QuickEmailGeneratorProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId,
-          userServiceTag: serviceTag || undefined,
           expiresInMinutes: 60,
         }),
       });
       const data = await res.json();
       if (data.success && data.emailAddress) {
-        setCurrentEmail(data.emailAddress);
+        setGeneratedEmail(data.emailAddress);
         onEmailChanged?.(data.emailAddress);
         setFeedbackMsg(`Generated new address: ${data.emailAddress.email_address}`);
         setTimeout(() => setFeedbackMsg(null), 3000);
       }
     } catch {
-      setFeedbackMsg('Error generating mailbox');
+      setFeedbackMsg('Failed to generate email');
     } finally {
       setIsGenerating(false);
     }
@@ -119,8 +109,8 @@ export const QuickEmailGenerator: React.FC<QuickEmailGeneratorProps> = ({
       });
       const data = await res.json();
       if (data.success && data.emailAddress) {
-        setCurrentEmail(data.emailAddress);
-        setFeedbackMsg('Mailbox lifetime extended by 60 minutes.');
+        setGeneratedEmail(data.emailAddress);
+        setFeedbackMsg('Extended lifetime by 60 minutes!');
         setTimeout(() => setFeedbackMsg(null), 3000);
       }
     } catch {
@@ -156,21 +146,21 @@ export const QuickEmailGenerator: React.FC<QuickEmailGeneratorProps> = ({
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/90 p-5 md:p-6 shadow-xl shadow-slate-900/5 transition-all">
+    <div className="relative overflow-hidden rounded-[18px] border border-[var(--line)] bg-[var(--bg-2)] p-5 md:p-6 shadow-[var(--shadow)] transition-all">
       {/* Decorative gradient glow */}
-      <div className="absolute top-0 right-0 -mt-10 -mr-10 h-40 w-40 rounded-full bg-indigo-500/10 dark:bg-indigo-500/20 blur-3xl pointer-events-none" />
+      <div className="absolute top-0 right-0 -mt-10 -mr-10 h-40 w-40 rounded-full bg-[var(--acc-soft)] blur-3xl pointer-events-none" />
 
       {/* Header Info */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800/80">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[var(--line)]">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-[var(--acc-soft)] text-[var(--acc)]">
             <Mail className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+            <h2 className="text-sm font-extrabold text-[var(--t0)]">
               Active Temporary Mailbox
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-[var(--t2)] font-medium">
               Catch-all routing via mail.omnibey.com
             </p>
           </div>
@@ -178,20 +168,22 @@ export const QuickEmailGenerator: React.FC<QuickEmailGeneratorProps> = ({
 
         {/* Expiration countdown pill */}
         <div className="flex items-center gap-2">
-          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-medium ${
-            isExpiringSoon
-              ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20 dark:bg-rose-500/20 dark:text-rose-400'
-              : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-400'
-          }`}>
+          <div
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold ${
+              countdown.isExpiringSoon
+                ? 'bg-[var(--bad-soft)] text-[var(--bad)] border border-[var(--bad)]/30'
+                : 'bg-[var(--ok-soft)] text-[var(--ok)] border border-[var(--ok)]/30'
+            }`}
+          >
             <Clock className="w-3.5 h-3.5 animate-pulse" />
-            <span>Expires in: <strong>{timeLeft}</strong></span>
+            <span>Expires in: <strong>{countdown.formatted}</strong></span>
           </div>
 
           <button
             onClick={handleExtend}
             disabled={isExtending || !currentEmail}
             title="Extend by 60 minutes"
-            className="p-1 rounded-lg text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="p-1 rounded-[8px] text-[var(--t2)] hover:text-[var(--t0)] hover:bg-[var(--bg-3)] transition-colors cursor-pointer"
           >
             <PlusCircle className="w-4 h-4" />
           </button>
@@ -205,7 +197,7 @@ export const QuickEmailGenerator: React.FC<QuickEmailGeneratorProps> = ({
             type="text"
             readOnly
             value={currentEmail ? currentEmail.email_address : 'Generating address...'}
-            className="w-full font-mono text-base md:text-lg font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 select-all transition-all"
+            className="w-full font-mono text-sm md:text-base font-bold text-[var(--t0)] bg-[var(--bg-3)] border border-[var(--line)] rounded-[13px] px-4 py-3 focus:outline-none focus:border-[var(--acc)] select-all transition-all"
           />
           {currentEmail?.user_service_tag && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden md:block">
@@ -243,21 +235,21 @@ export const QuickEmailGenerator: React.FC<QuickEmailGeneratorProps> = ({
 
       {/* Feedback Toast */}
       {feedbackMsg && (
-        <div className="mt-3 flex items-center gap-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 text-xs text-indigo-700 dark:text-indigo-300 animate-fade-in">
+        <div className="mt-3 flex items-center gap-2 rounded-[11px] bg-[var(--acc-soft)] border border-[var(--acc)]/30 px-3 py-1.5 text-xs text-[var(--acc)] font-bold animate-fade-in">
           <Sparkles className="w-3.5 h-3.5 shrink-0" />
           <span>{feedbackMsg}</span>
         </div>
       )}
 
       {/* Simulator Tools & Quick Tags for fast testing */}
-      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
-          <Send className="w-3.5 h-3.5 text-indigo-500" />
+      <div className="mt-4 pt-3 border-t border-[var(--line)] flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="flex items-center gap-2 text-[var(--t2)] font-medium">
+          <Send className="w-3.5 h-3.5 text-[var(--acc)]" />
           <span>Instant Test Simulation:</span>
           <button
             onClick={() => handleSimulateIncoming('Discord')}
             disabled={isSimulating || !currentEmail}
-            className="font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+            className="font-bold text-[var(--acc)] hover:underline cursor-pointer"
           >
             Discord OTP
           </button>
@@ -265,7 +257,7 @@ export const QuickEmailGenerator: React.FC<QuickEmailGeneratorProps> = ({
           <button
             onClick={() => handleSimulateIncoming('GitHub')}
             disabled={isSimulating || !currentEmail}
-            className="font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+            className="font-bold text-[var(--acc)] hover:underline cursor-pointer"
           >
             GitHub
           </button>
@@ -273,14 +265,14 @@ export const QuickEmailGenerator: React.FC<QuickEmailGeneratorProps> = ({
           <button
             onClick={() => handleSimulateIncoming('OpenAI')}
             disabled={isSimulating || !currentEmail}
-            className="font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+            className="font-bold text-[var(--acc)] hover:underline cursor-pointer"
           >
             OpenAI
           </button>
         </div>
 
-        <div className="text-slate-400 text-[11px]">
-          Messages: <strong className="text-slate-700 dark:text-slate-200">{currentEmail?.message_count || 0}</strong> | OTPs: <strong className="text-emerald-600 dark:text-emerald-400">{currentEmail?.otp_count || 0}</strong>
+        <div className="text-[var(--t2)] text-[11px] font-mono">
+          Messages: <strong className="text-[var(--t0)]">{currentEmail?.message_count || 0}</strong> | OTPs: <strong className="text-[var(--ok)]">{currentEmail?.otp_count || 0}</strong>
         </div>
       </div>
     </div>

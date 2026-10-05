@@ -27,7 +27,7 @@ export class OTPService {
     for (let i = 0; i < patterns.length; i++) {
       const match = combinedContent.match(patterns[i]);
       if (match && match[1]) {
-        let code = match[1].trim().replace(/\s+|-/g, '');
+        const code = match[1].trim().replace(/\s+|-/g, '');
 
         // Determine heuristic confidence
         let confidence: OTPConfidence = 'low';

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Mail, Shield, Menu, X, ArrowRight, LayoutDashboard, ShieldAlert } from 'lucide-react';
+import { Mail, Menu, X, ArrowRight, LayoutDashboard, ShieldAlert } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { Button } from './ui/Button';
 
@@ -15,44 +15,57 @@ export const Navbar: React.FC = () => {
   if (isAuthPage) return null;
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md transition-colors">
+    <header className="sticky top-0 z-40 w-full border-b border-[var(--line)] bg-[var(--bg-0)]/80 backdrop-blur-xl transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/30 group-hover:scale-105 transition-transform">
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-[var(--acc)] text-white shadow-[0_10px_24px_-8px_var(--acc-soft)] group-hover:scale-105 transition-transform">
             <Mail className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Omni<span className="text-indigo-600 dark:text-indigo-400">Mail</span>
-            </span>
-            <span className="hidden sm:inline-block ml-2 text-[10px] uppercase font-semibold tracking-wider text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-              by OmniBey
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-lg font-extrabold tracking-tight text-[var(--t0)]">
+                Omni<span className="text-[var(--acc)]">Mail</span>
+              </span>
+              <span className="text-[10px] font-mono font-bold tracking-wider px-1.5 py-0.5 rounded-[6px] bg-[var(--acc-soft)] text-[var(--acc)] border border-[var(--acc)]/25">
+                VELA
+              </span>
+            </div>
+            <p className="text-[10px] text-[var(--t2)] tracking-tight">by OmniBey Cloud</p>
           </div>
         </Link>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-300">
-          <Link href="/#how-it-works" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+        <nav className="hidden md:flex items-center gap-6 text-[13px] font-semibold text-[var(--t1)]">
+          <Link href="/#how-it-works" className="hover:text-[var(--t0)] transition-colors">
             How It Works
           </Link>
-          <Link href="/#features" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+          <Link href="/#features" className="hover:text-[var(--t0)] transition-colors">
             Features
           </Link>
-          <Link href="/#compatibility" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-            Compatibility
+          <Link href="/#compatibility" className="hover:text-[var(--t0)] transition-colors">
+            Services
           </Link>
-          <Link href="/#pricing" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+          <Link href="/#pricing" className="hover:text-[var(--t0)] transition-colors">
             Pricing
           </Link>
-          <Link href="/dashboard" className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">
-            <LayoutDashboard className="w-4 h-4" />
-            Dashboard
+
+          <div className="h-4 w-px bg-[var(--line)] mx-1" />
+
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] text-[var(--acc)] hover:bg-[var(--acc-soft)] transition-colors"
+          >
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            <span>User Dashboard</span>
           </Link>
-          <Link href="/admin" className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-semibold hover:underline">
-            <ShieldAlert className="w-4 h-4" />
-            Admin
+
+          <Link
+            href="/admin"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] text-[#f7b84e] hover:bg-[#f7b84e]/10 transition-colors"
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            <span>Admin Suite</span>
           </Link>
         </nav>
 
@@ -76,74 +89,63 @@ export const Navbar: React.FC = () => {
           {/* Mobile hamburger toggle */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="md:hidden p-2 rounded-[11px] text-[var(--t1)] hover:bg-[var(--bg-3)] hover:text-[var(--t0)] transition-colors"
             aria-label="Toggle menu"
           >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 pt-3 pb-6 space-y-3 animate-fade-in">
+        <div className="md:hidden border-b border-[var(--line)] bg-[var(--bg-1)] px-4 pt-3 pb-6 space-y-3 animate-fade-in text-sm font-semibold">
           <Link
             href="/#how-it-works"
             onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-lg text-base font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="block px-3 py-2 rounded-[9px] text-[var(--t1)] hover:text-[var(--t0)] hover:bg-[var(--bg-3)]"
           >
             How It Works
           </Link>
           <Link
             href="/#features"
             onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-lg text-base font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="block px-3 py-2 rounded-[9px] text-[var(--t1)] hover:text-[var(--t0)] hover:bg-[var(--bg-3)]"
           >
             Features
           </Link>
           <Link
-            href="/#compatibility"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-lg text-base font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
-            Compatibility Intelligence
-          </Link>
-          <Link
             href="/#pricing"
             onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-lg text-base font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="block px-3 py-2 rounded-[9px] text-[var(--t1)] hover:text-[var(--t0)] hover:bg-[var(--bg-3)]"
           >
-            Pricing Packages
+            Pricing
           </Link>
-          <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-2">
-            <Link
-              href="/dashboard"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-base font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40"
-            >
-              <LayoutDashboard className="w-5 h-5" />
-              User Dashboard
+          <Link
+            href="/dashboard"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block px-3 py-2 rounded-[9px] text-[var(--acc)] bg-[var(--acc-soft)]"
+          >
+            User Dashboard
+          </Link>
+          <Link
+            href="/admin"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block px-3 py-2 rounded-[9px] text-[#f7b84e] bg-[#f7b84e]/10"
+          >
+            Admin Suite
+          </Link>
+          <div className="pt-2 flex items-center gap-2">
+            <Link href="/login" className="flex-1">
+              <Button variant="outline" size="sm" className="w-full">
+                Sign In
+              </Button>
             </Link>
-            <Link
-              href="/admin"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-base font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40"
-            >
-              <ShieldAlert className="w-5 h-5" />
-              Admin Portal
+            <Link href="/signup" className="flex-1">
+              <Button variant="primary" size="sm" className="w-full">
+                Get Started
+              </Button>
             </Link>
-            <div className="flex gap-2 pt-2">
-              <Link href="/login" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="outline" size="md" className="w-full">
-                  Sign In
-                </Button>
-              </Link>
-              <Link href="/signup" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="primary" size="md" className="w-full">
-                  Get Started
-                </Button>
-              </Link>
-            </div>
           </div>
         </div>
       )}

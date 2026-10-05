@@ -32,8 +32,25 @@ export default function EmailsPage() {
     }
   };
 
+  const [now] = useState(() => Date.now());
+
   useEffect(() => {
-    fetchEmails();
+    let ignore = false;
+    async function init() {
+      try {
+        const res = await fetch('/api/email/generate?userId=user-demo-1');
+        const data = await res.json();
+        if (!ignore && data.emails) setEmails(data.emails);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    }
+    init();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const handleCopy = (id: string, email: string) => {
@@ -173,7 +190,7 @@ export default function EmailsPage() {
       {/* Email List */}
       <div className="space-y-3">
         {emails.map((e) => {
-          const isExpired = new Date(e.expires_at).getTime() < Date.now() || e.status === 'expired';
+          const isExpired = new Date(e.expires_at).getTime() < now || e.status === 'expired';
 
           return (
             <Card key={e.id} className="p-4" hoverEffect>
