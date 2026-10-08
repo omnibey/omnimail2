@@ -11,6 +11,7 @@ import { QuickEmailGenerator } from '@/components/QuickEmailGenerator';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { MetricsGridSkeleton } from '@/components/ui/Skeleton';
 import { EmailAddress, Message, UserProfile } from '@/types';
 
 type UserTab = 'mailboxes' | 'analytics' | 'credits';
@@ -21,13 +22,16 @@ export default function DashboardOverviewPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [copiedOtp, setCopiedOtp] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadDashboardData = useCallback(async () => {
     try {
+      setRefreshing(true);
       const [userRes, emailsRes, msgsRes] = await Promise.all([
-        fetch('/api/auth/session').then(r => r.json()),
-        fetch('/api/email/generate?userId=user-demo-1').then(r => r.json()),
-        fetch('/api/inbox?userId=user-demo-1').then(r => r.json()),
+        fetch('/api/auth/session').then((r) => r.json()),
+        fetch('/api/email/generate?userId=user-demo-1').then((r) => r.json()),
+        fetch('/api/inbox?userId=user-demo-1').then((r) => r.json()),
       ]);
 
       if (userRes.user) setUser(userRes.user);
@@ -35,35 +39,17 @@ export default function DashboardOverviewPage() {
       if (msgsRes.messages) setMessages(msgsRes.messages);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    let ignore = false;
-    async function init() {
-      try {
-        const [userRes, emailsRes, msgsRes] = await Promise.all([
-          fetch('/api/auth/session').then(r => r.json()),
-          fetch('/api/email/generate?userId=user-demo-1').then(r => r.json()),
-          fetch('/api/inbox?userId=user-demo-1').then(r => r.json()),
-        ]);
+    loadDashboardData();
+  }, [loadDashboardData]);
 
-        if (!ignore) {
-          if (userRes.user) setUser(userRes.user);
-          if (emailsRes.emails?.length > 0) setActiveEmail(emailsRes.emails[0]);
-          if (msgsRes.messages) setMessages(msgsRes.messages);
-        }
-      } catch (err) {
-        console.error('Failed to load dashboard data:', err);
-      }
-    }
-    init();
-    return () => {
-      ignore = true;
-    };
-  }, []);
-
-  const totalOtps = messages.filter(m => Boolean(m.detected_otp)).length;
+  const totalOtps = messages.filter((m) => Boolean(m.detected_otp)).length;
 
   const copyOtp = (otp: string) => {
     navigator.clipboard.writeText(otp);
@@ -72,7 +58,7 @@ export default function DashboardOverviewPage() {
   };
 
   return (
-    <div className="space-y-6 vela-page-enter">
+    <div className="space-y-6 vela-page-enter text-[var(--t0)]">
       {/* Header & Multi-Dashboard Tabs */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[var(--line)]">
         <div>
@@ -154,68 +140,72 @@ export default function DashboardOverviewPage() {
           />
 
           {/* Metric Cards 4x1 */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="p-4" hoverEffect>
-              <div className="flex items-center justify-between text-[var(--t2)] text-xs font-extrabold uppercase mb-1">
-                <span>Credit Balance</span>
-                <Coins className="w-4 h-4 text-[var(--acc)]" />
-              </div>
-              <div className="text-2xl font-extrabold text-[var(--t0)] font-mono">
-                {user?.credits ?? 45}
-              </div>
-              <div className="text-[11px] text-[var(--ok)] mt-1 font-bold">
-                15 credits bonus active
-              </div>
-            </Card>
+          {loading ? (
+            <MetricsGridSkeleton />
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="p-4 bg-[var(--bg-2)] border-[var(--line)]" hoverEffect>
+                <div className="flex items-center justify-between text-[var(--t2)] text-xs font-bold uppercase mb-1">
+                  <span>Credit Balance</span>
+                  <Coins className="w-4 h-4 text-[var(--acc)]" />
+                </div>
+                <div className="text-2xl font-extrabold text-[var(--t0)] font-mono">
+                  {user?.credits ?? 45}
+                </div>
+                <div className="text-[11px] text-[var(--ok)] mt-1 font-bold">
+                  15 trial credits active
+                </div>
+              </Card>
 
-            <Card className="p-4" hoverEffect>
-              <div className="flex items-center justify-between text-[var(--t2)] text-xs font-extrabold uppercase mb-1">
-                <span>Received Messages</span>
-                <Mail className="w-4 h-4 text-[#56a8ff]" />
-              </div>
-              <div className="text-2xl font-extrabold text-[var(--t0)] font-mono">
-                {messages.length}
-              </div>
-              <div className="text-[11px] text-[var(--t2)] mt-1">
-                Stored in memory
-              </div>
-            </Card>
+              <Card className="p-4 bg-[var(--bg-2)] border-[var(--line)]" hoverEffect>
+                <div className="flex items-center justify-between text-[var(--t2)] text-xs font-bold uppercase mb-1">
+                  <span>Received Messages</span>
+                  <Mail className="w-4 h-4 text-[#56a8ff]" />
+                </div>
+                <div className="text-2xl font-extrabold text-[var(--t0)] font-mono">
+                  {messages.length}
+                </div>
+                <div className="text-[11px] text-[var(--t2)] mt-1 font-medium">
+                  Stored securely
+                </div>
+              </Card>
 
-            <Card className="p-4" hoverEffect>
-              <div className="flex items-center justify-between text-[var(--t2)] text-xs font-extrabold uppercase mb-1">
-                <span>Extracted OTPs</span>
-                <ShieldCheck className="w-4 h-4 text-[var(--ok)]" />
-              </div>
-              <div className="text-2xl font-extrabold text-[var(--ok)] font-mono">
-                {totalOtps}
-              </div>
-              <div className="text-[11px] text-[var(--ok)] mt-1 font-bold">
-                Instant 1-click copy
-              </div>
-            </Card>
+              <Card className="p-4 bg-[var(--bg-2)] border-[var(--line)]" hoverEffect>
+                <div className="flex items-center justify-between text-[var(--t2)] text-xs font-bold uppercase mb-1">
+                  <span>Extracted OTPs</span>
+                  <ShieldCheck className="w-4 h-4 text-[var(--ok)]" />
+                </div>
+                <div className="text-2xl font-extrabold text-[var(--ok)] font-mono">
+                  {totalOtps}
+                </div>
+                <div className="text-[11px] text-[var(--ok)] mt-1 font-bold">
+                  Instant 1-click copy
+                </div>
+              </Card>
 
-            <Card className="p-4" hoverEffect>
-              <div className="flex items-center justify-between text-[var(--t2)] text-xs font-extrabold uppercase mb-1">
-                <span>Mail Routing Status</span>
-                <Activity className="w-4 h-4 text-[#f7b84e]" />
-              </div>
-              <div className="text-2xl font-extrabold text-[var(--t0)] font-mono">
-                Active
-              </div>
-              <div className="text-[11px] text-[var(--t2)] mt-1">
-                mail.omnibey.com
-              </div>
-            </Card>
-          </div>
+              <Card className="p-4 bg-[var(--bg-2)] border-[var(--line)]" hoverEffect>
+                <div className="flex items-center justify-between text-[var(--t2)] text-xs font-bold uppercase mb-1">
+                  <span>Mail Routing Status</span>
+                  <Activity className="w-4 h-4 text-[var(--warn)]" />
+                </div>
+                <div className="text-2xl font-extrabold text-[var(--t0)] font-mono">
+                  Active
+                </div>
+                <div className="text-[11px] text-[var(--t2)] mt-1 font-mono">
+                  mail.omnibey.com
+                </div>
+              </Card>
+            </div>
+          )}
 
           {/* Live Inbox Feed with OTP Fast Copy */}
-          <Card className="p-6">
+          <Card className="p-6 bg-[var(--bg-2)] border-[var(--line)]">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-extrabold text-[var(--t0)]">
                   Live Inbox Stream
                 </h3>
-                <p className="text-xs text-[var(--t2)]">
+                <p className="text-xs text-[var(--t2)] font-medium">
                   Incoming verification messages for {activeEmail ? activeEmail.email_address : 'your mailboxes'}
                 </p>
               </div>
@@ -223,19 +213,19 @@ export default function DashboardOverviewPage() {
                 variant="ghost"
                 size="sm"
                 onClick={loadDashboardData}
-                leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+                leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />}
               >
                 Refresh
               </Button>
             </div>
 
             {messages.length === 0 ? (
-              <div className="py-12 text-center">
+              <div className="py-12 text-center text-[var(--t2)]">
                 <div className="w-12 h-12 rounded-full bg-[var(--bg-3)] border border-[var(--line)] flex items-center justify-center mx-auto text-[var(--t2)] mb-3">
                   <Inbox className="w-6 h-6" />
                 </div>
                 <h4 className="text-sm font-bold text-[var(--t0)]">No messages yet</h4>
-                <p className="text-xs text-[var(--t2)] mt-1 max-w-sm mx-auto">
+                <p className="text-xs text-[var(--t2)] mt-1 max-w-sm mx-auto font-medium">
                   Send a verification email or click any simulation button in the generator above.
                 </p>
               </div>
@@ -301,11 +291,11 @@ export default function DashboardOverviewPage() {
       {activeTab === 'analytics' && (
         <div className="space-y-6 animate-fade-in">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="p-6 lg:col-span-2">
+            <Card className="p-6 lg:col-span-2 bg-[var(--bg-2)] border-[var(--line)]">
               <h3 className="text-sm font-bold text-[var(--t0)] mb-1">
                 Your Email Activity over 7 Days
               </h3>
-              <p className="text-xs text-[var(--t2)] mb-5">
+              <p className="text-xs text-[var(--t2)] mb-5 font-medium">
                 Daily volume of received emails and heuristic OTP extractions
               </p>
 
@@ -336,11 +326,11 @@ export default function DashboardOverviewPage() {
               </div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-6 bg-[var(--bg-2)] border-[var(--line)]">
               <h3 className="text-sm font-bold text-[var(--t0)] mb-1">
                 Top Service Domains
               </h3>
-              <p className="text-xs text-[var(--t2)] mb-5">
+              <p className="text-xs text-[var(--t2)] mb-5 font-medium">
                 Most frequent OTP senders
               </p>
 
@@ -349,7 +339,7 @@ export default function DashboardOverviewPage() {
                   { name: 'discord.com', count: '14 emails', pct: 45, color: 'bg-[var(--acc)]' },
                   { name: 'github.com', count: '9 emails', pct: 30, color: 'bg-[#56a8ff]' },
                   { name: 'openai.com', count: '5 emails', pct: 15, color: 'bg-[var(--ok)]' },
-                  { name: 'telegram.org', count: '3 emails', pct: 10, color: 'bg-[#f7b84e]' },
+                  { name: 'telegram.org', count: '3 emails', pct: 10, color: 'bg-[var(--warn)]' },
                 ].map((d, i) => (
                   <div key={i} className="space-y-1">
                     <div className="flex items-center justify-between text-xs">
@@ -373,7 +363,7 @@ export default function DashboardOverviewPage() {
       {activeTab === 'credits' && (
         <div className="space-y-6 animate-fade-in">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="p-6 border border-[var(--acc)]/30 bg-[var(--acc)]/5 relative overflow-hidden">
+            <Card className="p-6 border border-[var(--acc)]/30 bg-[var(--bg-2)] relative overflow-hidden" hoverEffect>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-extrabold uppercase text-[var(--acc)]">Starter Pack</span>
                 <Badge variant="primary" size="sm">Popular</Badge>
@@ -391,7 +381,7 @@ export default function DashboardOverviewPage() {
               </Link>
             </Card>
 
-            <Card className="p-6 border border-[var(--ok)]/30 bg-[var(--ok)]/5 relative overflow-hidden">
+            <Card className="p-6 border border-[var(--ok)]/30 bg-[var(--bg-2)] relative overflow-hidden" hoverEffect>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-extrabold uppercase text-[var(--ok)]">Pro Powerpack</span>
                 <Badge variant="success" size="sm">Best Value</Badge>
@@ -400,7 +390,7 @@ export default function DashboardOverviewPage() {
                 ৳250 <span className="text-xs text-[var(--t2)] font-sans">BDT</span>
               </div>
               <p className="text-xs text-[var(--t1)] mt-2">
-                300 Mailbox Credits + High-Priority Postfix Workers
+                300 Mailbox Credits + High-Priority Routing Workers
               </p>
               <Link href="/dashboard/credits" className="block mt-6">
                 <Button variant="success" size="sm" className="w-full">
@@ -409,9 +399,9 @@ export default function DashboardOverviewPage() {
               </Link>
             </Card>
 
-            <Card className="p-6 border border-[#f7b84e]/30 bg-[#f7b84e]/5 relative overflow-hidden">
+            <Card className="p-6 border border-[var(--warn)]/30 bg-[var(--bg-2)] relative overflow-hidden" hoverEffect>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold uppercase text-[#f7b84e]">Enterprise</span>
+                <span className="text-xs font-extrabold uppercase text-[var(--warn)]">Enterprise</span>
                 <Badge variant="warning" size="sm">Dedicated</Badge>
               </div>
               <div className="mt-4 text-3xl font-extrabold text-[var(--t0)] font-mono">

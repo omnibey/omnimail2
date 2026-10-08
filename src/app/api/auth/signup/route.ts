@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function POST(request: Request) {
   try {
-    const { name, email, password, confirmPassword, acceptTerms } = await request.json();
+    const { name, email, password, confirmPassword, acceptTerms, returnTo } = await request.json();
 
     if (!name || !email || !password) {
       return NextResponse.json(
@@ -89,18 +89,32 @@ export async function POST(request: Request) {
     // 2. Also save to OmniMailRepository
     const user = await OmniMailRepository.createUser(cleanName, cleanEmail, role);
 
+    // Determine target redirect route
+    let targetRoute = user.role === 'admin' ? '/admin' : '/dashboard';
+    if (returnTo && typeof returnTo === 'string' && returnTo.startsWith('/') && !returnTo.startsWith('//')) {
+      targetRoute = returnTo;
+    }
+
     const response = NextResponse.json({
       success: true,
       user: {
         ...user,
         id: supabaseUserId || user.id,
       },
-      message: 'Account created successfully in Supabase with 15 free trial credits!',
-      redirectTo: user.role === 'admin' ? '/admin' : '/dashboard',
+      message: 'Account created successfully with 15 free trial credits! Logging you in...',
+      redirectTo: targetRoute,
     });
 
-    response.cookies.set('omnimail_session', supabaseUserId || user.id, { path: '/', maxAge: 86400 });
-    response.cookies.set('omnimail_role', user.role, { path: '/', maxAge: 86400 });
+    response.cookies.set('omnimail_session', supabaseUserId || user.id, {
+      path: '/',
+      maxAge: 86400,
+      sameSite: 'lax',
+    });
+    response.cookies.set('omnimail_role', user.role, {
+      path: '/',
+      maxAge: 86400,
+      sameSite: 'lax',
+    });
 
     return response;
   } catch (err: unknown) {

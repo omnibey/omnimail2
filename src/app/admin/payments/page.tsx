@@ -3,12 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { 
   CreditCard, CheckCircle2, XCircle, Eye, 
-  Trash2, ShieldCheck, AlertCircle, Sparkles, Filter 
+  Trash2, ShieldCheck, AlertCircle, Sparkles, Filter, RefreshCw 
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
+import { TableSkeleton } from '@/components/ui/Skeleton';
+import { LottieLoader } from '@/components/ui/LottieLoader';
 import { Payment } from '@/types';
 
 export default function AdminPaymentsPage() {
@@ -19,33 +21,24 @@ export default function AdminPaymentsPage() {
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const fetchPayments = async () => {
     try {
+      setLoading(true);
       const res = await fetch('/api/admin/metrics');
       const data = await res.json();
       if (data.recentPayments) setPayments(data.recentPayments);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to load admin payments:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    let ignore = false;
-    async function init() {
-      try {
-        const res = await fetch('/api/admin/metrics');
-        const data = await res.json();
-        if (!ignore && data.recentPayments) setPayments(data.recentPayments);
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    init();
-    return () => {
-      ignore = true;
-    };
+    fetchPayments();
   }, []);
 
   const handleApprove = async (paymentId: string) => {
@@ -100,7 +93,7 @@ export default function AdminPaymentsPage() {
         throw new Error(data.error || 'Rejection failed');
       }
 
-      setToastMsg('Payment rejected and reason recorded.');
+      setToastMsg('Payment rejected and reason recorded in immutable audit log.');
       setRejectModalOpen(false);
       setInspectModalOpen(false);
       setRejectionReason('');
@@ -120,28 +113,37 @@ export default function AdminPaymentsPage() {
   });
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+    <div className="space-y-6 animate-fade-in text-[var(--t0)]">
+      {actionLoading && (
+        <LottieLoader
+          overlay
+          size="md"
+          text="Processing payment verification..."
+          subtext="Executing atomic transaction ledger state mutation..."
+        />
+      )}
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--line)]">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
-            <CreditCard className="w-6 h-6 text-amber-500" />
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[var(--t0)] flex items-center gap-2.5">
+            <CreditCard className="w-6 h-6 text-[var(--warn)]" />
             Manual Payment Review & Verification
           </h1>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Enforces strict idempotency: one payment can NEVER allocate credits twice. Screenshot is automatically purged on approval.
+          <p className="mt-1 text-xs text-[var(--t2)] font-medium">
+            Strict idempotency verification: one payment can NEVER credit balance twice. Proof screenshots are purged immediately on approval.
           </p>
         </div>
 
         {/* Filter buttons */}
-        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+        <div className="flex items-center gap-1.5 bg-[var(--bg-inset)] p-1 rounded-[13px] border border-[var(--line)] text-xs">
           {(['pending', 'approved', 'rejected', 'all'] as const).map((st) => (
             <button
               key={st}
               onClick={() => setFilter(st)}
-              className={`px-3 py-1.5 rounded-lg font-semibold uppercase tracking-wider text-[10px] transition-all ${
+              className={`px-3 py-1.5 rounded-[9px] font-bold uppercase tracking-wider text-[10px] transition-all cursor-pointer ${
                 filter === st
-                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  ? 'bg-[var(--bg-1)] text-[var(--t0)] shadow-xs border border-[var(--line)]'
+                  : 'text-[var(--t2)] hover:text-[var(--t0)]'
               }`}
             >
               {st}
@@ -151,148 +153,152 @@ export default function AdminPaymentsPage() {
       </div>
 
       {toastMsg && (
-        <div className="flex items-center gap-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 p-3.5 text-xs text-emerald-700 dark:text-emerald-300">
-          <Sparkles className="w-4 h-4 shrink-0 text-emerald-600" />
+        <div className="flex items-center gap-2.5 rounded-[12px] bg-[var(--ok-soft)] border border-[var(--ok)]/30 p-3.5 text-xs text-[var(--ok)] font-semibold animate-fade-in">
+          <Sparkles className="w-4 h-4 shrink-0 text-[var(--ok)]" />
           <span>{toastMsg}</span>
         </div>
       )}
 
       {/* Payments Table */}
-      <Card className="overflow-hidden">
-        {filteredPayments.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 text-xs">
-            No payments match the filter &ldquo;{filter}&rdquo;.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800 font-semibold text-slate-500 uppercase tracking-wider">
-                <tr>
-                  <th className="px-5 py-3.5">Payment ID</th>
-                  <th className="px-5 py-3.5">User</th>
-                  <th className="px-5 py-3.5">Package & Amount</th>
-                  <th className="px-5 py-3.5">Method</th>
-                  <th className="px-5 py-3.5">Sender Identifier</th>
-                  <th className="px-5 py-3.5">TrxID / Proof</th>
-                  <th className="px-5 py-3.5">Status</th>
-                  <th className="px-5 py-3.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                {filteredPayments.map((pay) => (
-                  <tr key={pay.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="px-5 py-4 font-mono font-bold text-slate-900 dark:text-white">
-                      {pay.payment_ref}
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <div className="font-semibold text-slate-800 dark:text-slate-200">
-                        {pay.user_name || 'Alex Rivera'}
-                      </div>
-                      <div className="text-[11px] text-slate-400 font-mono">
-                        {pay.user_email || 'user@omnibey.com'}
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <div className="font-bold text-slate-900 dark:text-white">
-                        ৳{pay.amount} {pay.currency}
-                      </div>
-                      <div className="text-[11px] text-slate-500">
-                        {pay.package_name}
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <span className="font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[10px]">
-                        {pay.payment_method}
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4 font-mono font-bold text-slate-700 dark:text-slate-200">
-                      {pay.sender_identifier}
-                    </td>
-
-                    <td className="px-5 py-4">
-                      {pay.transaction_id ? (
-                        <div className="font-mono text-indigo-600 dark:text-indigo-400 font-semibold">
-                          {pay.transaction_id}
-                        </div>
-                      ) : null}
-                      {pay.screenshot_url ? (
-                        <span className="text-emerald-600 dark:text-emerald-400 text-[10px] block">
-                          [Screenshot Attached]
-                        </span>
-                      ) : pay.status === 'approved' ? (
-                        <span className="text-slate-400 text-[10px] italic">
-                          Screenshot purged
-                        </span>
-                      ) : null}
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <Badge
-                        variant={
-                          pay.status === 'approved'
-                            ? 'success'
-                            : pay.status === 'rejected'
-                            ? 'danger'
-                            : 'warning'
-                        }
-                        size="sm"
-                      >
-                        {pay.status}
-                      </Badge>
-                    </td>
-
-                    <td className="px-5 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          onClick={() => {
-                            setSelectedPayment(pay);
-                            setInspectModalOpen(true);
-                          }}
-                          variant="outline"
-                          size="sm"
-                          leftIcon={<Eye className="w-3.5 h-3.5" />}
-                        >
-                          Inspect
-                        </Button>
-
-                        {pay.status === 'pending' && (
-                          <>
-                            <Button
-                              onClick={() => handleApprove(pay.id)}
-                              variant="success"
-                              size="sm"
-                              isLoading={actionLoading}
-                              leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
-                            >
-                              Approve
-                            </Button>
-
-                            <Button
-                              onClick={() => {
-                                setSelectedPayment(pay);
-                                setRejectModalOpen(true);
-                              }}
-                              variant="danger"
-                              size="sm"
-                              leftIcon={<XCircle className="w-3.5 h-3.5" />}
-                            >
-                              Reject
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </td>
+      {loading ? (
+        <TableSkeleton rows={5} />
+      ) : (
+        <Card className="overflow-hidden bg-[var(--bg-2)] border-[var(--line)]">
+          {filteredPayments.length === 0 ? (
+            <div className="p-12 text-center text-[var(--t2)] text-xs">
+              No payments match the filter &ldquo;{filter}&rdquo;.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[var(--bg-3)] border-b border-[var(--line)] font-bold text-[var(--t2)] uppercase tracking-wider">
+                  <tr>
+                    <th className="px-5 py-3.5">Payment ID</th>
+                    <th className="px-5 py-3.5">User</th>
+                    <th className="px-5 py-3.5">Package & Amount</th>
+                    <th className="px-5 py-3.5">Method</th>
+                    <th className="px-5 py-3.5">Sender Identifier</th>
+                    <th className="px-5 py-3.5">TrxID / Proof</th>
+                    <th className="px-5 py-3.5">Status</th>
+                    <th className="px-5 py-3.5 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+                </thead>
+                <tbody className="divide-y divide-[var(--line)] font-medium">
+                  {filteredPayments.map((pay) => (
+                    <tr key={pay.id} className="hover:bg-[var(--bg-3)]/60 transition-colors">
+                      <td className="px-5 py-4 font-mono font-bold text-[var(--t0)]">
+                        {pay.payment_ref}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="font-bold text-[var(--t0)]">
+                          {pay.user_name || 'Alex Rivera'}
+                        </div>
+                        <div className="text-[11px] text-[var(--t2)] font-mono">
+                          {pay.user_email || 'user@omnibey.com'}
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="font-bold text-[var(--t0)] font-mono">
+                          ৳{pay.amount} {pay.currency}
+                        </div>
+                        <div className="text-[11px] text-[var(--t2)]">
+                          {pay.package_name}
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <span className="font-bold uppercase tracking-wider text-[var(--t0)] bg-[var(--bg-3)] border border-[var(--line)] px-2 py-0.5 rounded-[6px] text-[10px]">
+                          {pay.payment_method}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-4 font-mono text-[var(--t0)]">
+                        {pay.sender_identifier}
+                      </td>
+
+                      <td className="px-5 py-4 font-mono">
+                        {pay.transaction_id ? (
+                          <div className="text-[var(--acc)] font-bold">
+                            {pay.transaction_id}
+                          </div>
+                        ) : null}
+                        {pay.screenshot_url ? (
+                          <span className="text-[var(--ok)] text-[10px] block font-bold">
+                            [Screenshot Attached]
+                          </span>
+                        ) : pay.status === 'approved' ? (
+                          <span className="text-[var(--t2)] text-[10px] italic">
+                            Screenshot purged
+                          </span>
+                        ) : null}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <Badge
+                          variant={
+                            pay.status === 'approved'
+                              ? 'success'
+                              : pay.status === 'rejected'
+                              ? 'danger'
+                              : 'warning'
+                          }
+                          size="sm"
+                        >
+                          {pay.status}
+                        </Badge>
+                      </td>
+
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            onClick={() => {
+                              setSelectedPayment(pay);
+                              setInspectModalOpen(true);
+                            }}
+                            variant="outline"
+                            size="sm"
+                            leftIcon={<Eye className="w-3.5 h-3.5" />}
+                          >
+                            Inspect
+                          </Button>
+
+                          {pay.status === 'pending' && (
+                            <>
+                              <Button
+                                onClick={() => handleApprove(pay.id)}
+                                variant="success"
+                                size="sm"
+                                isLoading={actionLoading}
+                                leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
+                              >
+                                Approve
+                              </Button>
+
+                              <Button
+                                onClick={() => {
+                                  setSelectedPayment(pay);
+                                  setRejectModalOpen(true);
+                                }}
+                                variant="danger"
+                                size="sm"
+                                leftIcon={<XCircle className="w-3.5 h-3.5" />}
+                              >
+                                Reject
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Inspect / Verification Modal */}
       <Modal
@@ -304,30 +310,30 @@ export default function AdminPaymentsPage() {
       >
         {selectedPayment && (
           <div className="space-y-4 text-xs">
-            <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+            <div className="grid grid-cols-2 gap-3 p-3.5 rounded-[14px] border border-[var(--line)] bg-[var(--bg-3)]">
               <div>
-                <span className="text-slate-400">User:</span>
-                <div className="font-semibold text-slate-900 dark:text-white">{selectedPayment.user_email}</div>
+                <span className="text-[var(--t2)]">User:</span>
+                <div className="font-bold text-[var(--t0)]">{selectedPayment.user_email}</div>
               </div>
               <div>
-                <span className="text-slate-400">Amount & Currency:</span>
-                <div className="font-bold text-slate-900 dark:text-white">৳{selectedPayment.amount} {selectedPayment.currency}</div>
+                <span className="text-[var(--t2)]">Amount & Currency:</span>
+                <div className="font-mono font-bold text-[var(--t0)]">৳{selectedPayment.amount} {selectedPayment.currency}</div>
               </div>
               <div>
-                <span className="text-slate-400">Payment Gateway:</span>
-                <div className="font-bold uppercase text-indigo-600 dark:text-indigo-400">{selectedPayment.payment_method}</div>
+                <span className="text-[var(--t2)]">Payment Gateway:</span>
+                <div className="font-bold uppercase text-[var(--acc)]">{selectedPayment.payment_method}</div>
               </div>
               <div>
-                <span className="text-slate-400">Sender Number / Account:</span>
-                <div className="font-mono font-bold text-slate-900 dark:text-white">{selectedPayment.sender_identifier}</div>
+                <span className="text-[var(--t2)]">Sender Number / Account:</span>
+                <div className="font-mono font-bold text-[var(--t0)]">{selectedPayment.sender_identifier}</div>
               </div>
               <div>
-                <span className="text-slate-400">Transaction ID (TrxID):</span>
-                <div className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{selectedPayment.transaction_id || 'None (Screenshot provided)'}</div>
+                <span className="text-[var(--t2)]">Transaction ID (TrxID):</span>
+                <div className="font-mono font-bold text-[var(--acc)]">{selectedPayment.transaction_id || 'None (Screenshot provided)'}</div>
               </div>
               <div>
-                <span className="text-slate-400">Status:</span>
-                <div>
+                <span className="text-[var(--t2)]">Status:</span>
+                <div className="mt-0.5">
                   <Badge variant={selectedPayment.status === 'approved' ? 'success' : selectedPayment.status === 'rejected' ? 'danger' : 'warning'} size="sm">
                     {selectedPayment.status}
                   </Badge>
@@ -338,34 +344,34 @@ export default function AdminPaymentsPage() {
             {/* Screenshot Preview */}
             {selectedPayment.screenshot_url ? (
               <div>
-                <span className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                <span className="block font-bold text-[var(--t1)] mb-1.5 uppercase tracking-wider">
                   Attached Payment Proof Screenshot:
                 </span>
-                <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-2 bg-slate-100 dark:bg-slate-950 text-center">
+                <div className="rounded-[14px] border border-[var(--line)] p-2 bg-[var(--bg-3)] text-center">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={selectedPayment.screenshot_url}
                     alt="Payment Proof"
-                    className="max-h-60 mx-auto rounded-lg object-contain shadow-sm"
+                    className="max-h-60 mx-auto rounded-[10px] object-contain shadow-sm"
                   />
-                  <p className="mt-1.5 text-[10px] text-slate-400">
+                  <p className="mt-1.5 text-[10px] text-[var(--t2)]">
                     * Approving will delete this screenshot permanently from storage to enforce zero-retention privacy.
                   </p>
                 </div>
               </div>
             ) : selectedPayment.status === 'approved' ? (
-              <div className="p-3 rounded-xl border border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 text-xs">
-                ✓ Screenshot purged immediately upon approval in accordance with Section 15 privacy requirements.
+              <div className="p-3.5 rounded-[12px] border border-[var(--ok)]/30 bg-[var(--ok-soft)] text-[var(--ok)] text-xs font-semibold">
+                ✓ Screenshot purged immediately upon approval in accordance with privacy requirements.
               </div>
             ) : (
-              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 text-xs">
-                No screenshot uploaded. Verified using Transaction ID: <code>{selectedPayment.transaction_id}</code>
+              <div className="p-3.5 rounded-[12px] border border-[var(--line)] text-[var(--t2)] text-xs">
+                No screenshot uploaded. Verified using Transaction ID: <code className="font-mono text-[var(--t0)]">{selectedPayment.transaction_id}</code>
               </div>
             )}
 
             {/* Actions */}
             {selectedPayment.status === 'pending' && (
-              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-[var(--line)]">
                 <Button
                   onClick={() => {
                     setInspectModalOpen(false);
@@ -401,8 +407,8 @@ export default function AdminPaymentsPage() {
       >
         <form onSubmit={handleReject} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Rejection Reason <span className="text-rose-500">*</span>
+            <label className="block text-xs font-bold text-[var(--t1)] mb-1 uppercase tracking-wider">
+              Rejection Reason <span className="text-[var(--bad)]">*</span>
             </label>
             <textarea
               required
@@ -410,7 +416,7 @@ export default function AdminPaymentsPage() {
               placeholder="e.g. Sender number did not match merchant transaction statement for this timeframe."
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+              className="w-full px-3.5 py-2.5 rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] text-xs focus:outline-none focus:border-[var(--bad)] transition-all font-medium"
             />
           </div>
 

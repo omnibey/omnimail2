@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, [data-theme="dark"], .dark *, [data-theme="dark"] *));
+
 @layer base {
   :root,
   [data-theme="dark"],
@@ -16,9 +18,9 @@
     --bg-inset: #0c0e15;
     --line: rgba(255, 255, 255, 0.08);
     --line-2: rgba(255, 255, 255, 0.14);
-    --t0: #f3f4f9;
-    --t1: #9aa1b2;
-    --t2: #5f6678;
+    --t0: #f8fafc;
+    --t1: #94a3b8;
+    --t2: #64748b;
     --acc: #7c5cff;
     --acc-2: #9d86ff;
     --acc-soft: rgba(124, 92, 255, 0.16);
@@ -58,29 +60,29 @@
   [data-theme="light"],
   .light {
     color-scheme: light;
-    /* Vela Light Core Tokens */
-    --bg-0: #eef0f5;
+    /* Vela Light Core Tokens - High-Contrast Precision */
+    --bg-0: #f6f7fb;
     --bg-1: #ffffff;
     --bg-2: #ffffff;
-    --bg-3: #f3f4f9;
-    --bg-inset: #f5f6fb;
-    --line: rgba(17, 20, 32, 0.08);
-    --line-2: rgba(17, 20, 32, 0.15);
-    --t0: #171a23;
-    --t1: #5a6173;
-    --t2: #9097a8;
+    --bg-3: #eef1f8;
+    --bg-inset: #f1f3f9;
+    --line: rgba(15, 23, 42, 0.08);
+    --line-2: rgba(15, 23, 42, 0.15);
+    --t0: #0f172a;
+    --t1: #475569;
+    --t2: #64748b;
     --acc: #6a4cff;
     --acc-2: #8b6dff;
     --acc-soft: rgba(106, 76, 255, 0.12);
-    --ok: #16b67e;
-    --warn: #df9626;
-    --bad: #e8556a;
-    --info: #3b8ef0;
-    --ok-soft: rgba(22, 182, 126, 0.12);
-    --bad-soft: rgba(232, 85, 106, 0.12);
-    --warn-soft: rgba(223, 150, 38, 0.14);
-    --info-soft: rgba(59, 142, 240, 0.12);
-    --shadow: 0 14px 34px -18px rgba(20, 24, 40, 0.2);
+    --ok: #10b981;
+    --warn: #d97706;
+    --bad: #ef4444;
+    --info: #2563eb;
+    --ok-soft: rgba(16, 185, 129, 0.12);
+    --bad-soft: rgba(239, 68, 68, 0.12);
+    --warn-soft: rgba(217, 119, 6, 0.14);
+    --info-soft: rgba(37, 99, 235, 0.12);
+    --shadow: 0 14px 34px -18px rgba(15, 23, 42, 0.12);
 
     /* Radiuses */
     --radius-vela-sm: 9px;
@@ -105,6 +107,10 @@
   }
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background-color: var(--bg-0);
   color: var(--t0);
@@ -113,7 +119,7 @@ body {
   background-size: 28px 28px;
   background-attachment: fixed;
   overflow-x: hidden;
-  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -160,8 +166,8 @@ body {
 }
 
 @keyframes velaShimmer {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.9; }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 @keyframes velaRise {
@@ -194,6 +200,39 @@ body {
 
 .animate-pulse-glow {
   animation: velaPulse 2s infinite;
+}
+
+/* Skeleton Effect */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--bg-3);
+}
+
+.skeleton-shimmer::after {
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.08) 20%,
+    rgba(255, 255, 255, 0.16) 60%,
+    rgba(255, 255, 255, 0)
+  );
+  animation: velaShimmer 1.8s infinite;
+  content: '';
+}
+
+[data-theme="light"] .skeleton-shimmer::after,
+.light .skeleton-shimmer::after {
+  background-image: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0) 0,
+    rgba(0, 0, 0, 0.04) 20%,
+    rgba(0, 0, 0, 0.08) 60%,
+    rgba(0, 0, 0, 0)
+  );
 }
 
 /* Vela Scrollbar */

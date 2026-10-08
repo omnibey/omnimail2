@@ -7,9 +7,17 @@ import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, AlertCircle } from 'l
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { GoogleAuthModal } from '@/components/GoogleAuthModal';
+import { LottieLoader } from '@/components/ui/LottieLoader';
 
 function LoginForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const targetRoute =
+    searchParams.get('returnTo') ||
+    searchParams.get('redirect') ||
+    searchParams.get('next') ||
+    '/dashboard';
+
   const errorParam = searchParams.get('error');
   const initialOauthError = errorParam
     ? (errorParam === 'oauth_failed'
@@ -21,10 +29,10 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [googleModalOpen, setGoogleModalOpen] = useState(false);
-  const router = useRouter();
 
   const activeError = errorMsg ?? initialOauthError;
 
@@ -52,17 +60,20 @@ function LoginForm() {
       }
 
       setSuccessMsg('Login successful! Redirecting to your dashboard...');
-      document.cookie = `omnimail_session=${data.user.id}; path=/; max-age=86400`;
-      document.cookie = `omnimail_role=${data.user.role}; path=/; max-age=86400`;
+      setIsRedirecting(true);
 
+      document.cookie = `omnimail_session=${data.user.id}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `omnimail_role=${data.user.role}; path=/; max-age=86400; SameSite=Lax`;
+
+      const destination = targetRoute !== '/dashboard' ? targetRoute : (data.redirectTo || '/dashboard');
       setTimeout(() => {
-        router.push(data.redirectTo || '/dashboard');
-      }, 500);
+        router.push(destination);
+      }, 700);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Login failed';
       setErrorMsg(msg);
-    } finally {
       setIsLoading(false);
+      setIsRedirecting(false);
     }
   };
 
@@ -79,7 +90,19 @@ function LoginForm() {
   return (
     <div className="relative min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-[var(--bg-0)] text-[var(--t0)] transition-colors overflow-hidden">
       {/* Vela Ambient Glow Background */}
-      <div className="pointer-events-none absolute left-1/2 top-1/4 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-60" style={{ background: 'radial-gradient(circle, var(--acc-soft), transparent 68%)' }} />
+      <div
+        className="pointer-events-none absolute left-1/2 top-1/4 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-60"
+        style={{ background: 'radial-gradient(circle, var(--acc-soft), transparent 68%)' }}
+      />
+
+      {isRedirecting && (
+        <LottieLoader
+          overlay
+          size="lg"
+          text="Signing in..."
+          subtext={`Authenticated! Opening ${targetRoute}...`}
+        />
+      )}
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center px-4">
         <Link href="/" className="inline-flex items-center gap-3 group mb-4">
@@ -93,23 +116,23 @@ function LoginForm() {
         <h2 className="text-2xl font-extrabold tracking-tight text-[var(--t0)]">
           Welcome back to OmniMail
         </h2>
-        <p className="mt-2 text-xs text-[var(--t1)]">
+        <p className="mt-2 text-xs text-[var(--t2)] font-medium">
           Temporary disposable mailboxes with instantaneous OTP extraction.
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 relative z-10">
-        <Card className="p-6 sm:p-8 border border-[var(--line)] bg-[var(--bg-2)] shadow-[var(--shadow)] backdrop-blur-xl">
+        <Card className="p-6 sm:p-8 border border-[var(--line)] bg-[var(--bg-1)] shadow-[var(--shadow)] backdrop-blur-xl">
           {activeError && (
-            <div className="mb-5 p-3.5 rounded-[12px] bg-[#f76d7d]/15 border border-[#f76d7d]/30 text-xs text-[#f76d7d] flex items-start gap-2.5 animate-fade-in">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#f76d7d]" />
-              <div className="flex-1 font-medium">{activeError}</div>
+            <div className="mb-5 p-3.5 rounded-[12px] bg-[var(--bad-soft)] border border-[var(--bad)]/30 text-xs text-[var(--bad)] flex items-start gap-2.5 animate-fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[var(--bad)]" />
+              <div className="flex-1 font-semibold">{activeError}</div>
             </div>
           )}
 
           {successMsg && (
-            <div className="mb-5 p-3.5 rounded-[12px] bg-[#33d493]/15 border border-[#33d493]/30 text-xs text-[#33d493] flex items-center gap-2 animate-fade-in">
-              <ShieldCheck className="w-4 h-4 shrink-0 text-[#33d493]" />
+            <div className="mb-5 p-3.5 rounded-[12px] bg-[var(--ok-soft)] border border-[var(--ok)]/30 text-xs text-[var(--ok)] flex items-center gap-2 animate-fade-in">
+              <ShieldCheck className="w-4 h-4 shrink-0 text-[var(--ok)]" />
               <div className="font-semibold">{successMsg}</div>
             </div>
           )}
@@ -127,7 +150,7 @@ function LoginForm() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="user@omnibey.com"
-                  className="w-full pl-10 pr-4 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-medium"
                 />
               </div>
             </div>
@@ -152,12 +175,12 @@ function LoginForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full pl-10 pr-10 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all"
+                  className="w-full pl-10 pr-10 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-medium"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--t2)] hover:text-[var(--t0)]"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--t2)] hover:text-[var(--t0)] cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -213,7 +236,7 @@ function LoginForm() {
               <button
                 type="button"
                 onClick={() => handleQuickDemoLogin('user')}
-                className="text-[var(--acc)] font-bold hover:underline"
+                className="text-[var(--acc)] font-bold hover:underline cursor-pointer"
               >
                 User (Demo)
               </button>
@@ -221,7 +244,7 @@ function LoginForm() {
               <button
                 type="button"
                 onClick={() => handleQuickDemoLogin('admin')}
-                className="text-[#f7b84e] font-bold hover:underline"
+                className="text-[var(--warn)] font-bold hover:underline cursor-pointer"
               >
                 Admin (Root)
               </button>
@@ -231,7 +254,10 @@ function LoginForm() {
 
         <p className="mt-6 text-center text-xs text-[var(--t2)]">
           Don&apos;t have an account?{' '}
-          <Link href="/signup" className="font-bold text-[var(--acc)] hover:underline">
+          <Link
+            href={`/signup${targetRoute !== '/dashboard' ? `?returnTo=${encodeURIComponent(targetRoute)}` : ''}`}
+            className="font-bold text-[var(--acc)] hover:underline"
+          >
             Create an account for free
           </Link>
         </p>
@@ -248,7 +274,13 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[var(--bg-0)] flex items-center justify-center" />}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[var(--bg-0)] flex items-center justify-center">
+          <LottieLoader size="md" text="Loading sign in..." />
+        </div>
+      }
+    >
       <LoginForm />
     </Suspense>
   );

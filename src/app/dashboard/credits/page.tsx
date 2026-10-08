@@ -9,6 +9,8 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
+import { PackagesGridSkeleton, TableSkeleton } from '@/components/ui/Skeleton';
+import { LottieLoader } from '@/components/ui/LottieLoader';
 import { CreditPackage, CreditTransaction, PaymentMethod, SystemPaymentDestination } from '@/types';
 
 export default function CreditsPage() {
@@ -16,6 +18,7 @@ export default function CreditsPage() {
   const [destinations, setDestinations] = useState<Record<PaymentMethod, SystemPaymentDestination> | null>(null);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [currentCredits, setCurrentCredits] = useState<number>(45);
+  const [loading, setLoading] = useState(true);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -31,42 +34,23 @@ export default function CreditsPage() {
 
   const loadData = async () => {
     try {
-      const pkgRes = await fetch('/api/payments/packages');
-      const pkgData = await pkgRes.json();
-      if (pkgData.packages) setPackages(pkgData.packages);
-      if (pkgData.destinations) setDestinations(pkgData.destinations);
-
-      const histRes = await fetch('/api/payments/history?userId=user-demo-1');
-      const histData = await histRes.json();
-      if (histData.transactions) setTransactions(histData.transactions);
-      if (histData.credits !== undefined) setCurrentCredits(histData.credits);
+      const [pkgRes, histRes] = await Promise.all([
+        fetch('/api/payments/packages').then((r) => r.json()),
+        fetch('/api/payments/history?userId=user-demo-1').then((r) => r.json()),
+      ]);
+      if (pkgRes.packages) setPackages(pkgRes.packages);
+      if (pkgRes.destinations) setDestinations(pkgRes.destinations);
+      if (histRes.transactions) setTransactions(histRes.transactions);
+      if (histRes.credits !== undefined) setCurrentCredits(histRes.credits);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to load credit data:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    let ignore = false;
-    async function init() {
-      try {
-        const [pkgRes, histRes] = await Promise.all([
-          fetch('/api/payments/packages').then(r => r.json()),
-          fetch('/api/payments/history?userId=user-demo-1').then(r => r.json()),
-        ]);
-        if (!ignore) {
-          if (pkgRes.packages) setPackages(pkgRes.packages);
-          if (pkgRes.destinations) setDestinations(pkgRes.destinations);
-          if (histRes.transactions) setTransactions(histRes.transactions);
-          if (histRes.credits !== undefined) setCurrentCredits(histRes.credits);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    init();
-    return () => {
-      ignore = true;
-    };
+    loadData();
   }, []);
 
   const openPaymentModal = (pkg: CreditPackage) => {
@@ -84,7 +68,7 @@ export default function CreditsPage() {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      setFormError('Screenshot file size must be less than 5MB');
+      setFormError('Screenshot file size must be less than 5MB.');
       return;
     }
 
@@ -100,19 +84,16 @@ export default function CreditsPage() {
     e.preventDefault();
     setFormError(null);
 
-    // Strict validation requirement:
-    // 1. Sender number is REQUIRED
     if (!senderIdentifier.trim()) {
       setFormError('Sender Number / Account Identifier is required.');
       return;
     }
 
-    // 2. At least ONE of Transaction ID or Screenshot must be provided
     const hasTxId = Boolean(transactionId.trim());
     const hasScreenshot = Boolean(screenshotBase64);
 
     if (!hasTxId && !hasScreenshot) {
-      setFormError('Verification requires either a Transaction ID OR a Payment Screenshot. Please provide at least one.');
+      setFormError('Verification requires either a Transaction ID (TrxID) or a Payment Screenshot. Please provide at least one.');
       return;
     }
 
@@ -142,7 +123,7 @@ export default function CreditsPage() {
       setIsModalOpen(false);
       setSuccessToast(`Payment ${data.payment.payment_ref} submitted! An admin will review and approve credits.`);
       loadData();
-      setTimeout(() => setSuccessToast(null), 5000);
+      setTimeout(() => setSuccessToast(null), 6000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Submission failed';
       setFormError(msg);
@@ -154,166 +135,183 @@ export default function CreditsPage() {
   const activeDestination = destinations ? destinations[selectedMethod] : null;
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+    <div className="space-y-8 animate-fade-in text-[var(--t0)]">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--line)]">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
-            <Coins className="w-6 h-6 text-amber-500" />
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[var(--t0)] flex items-center gap-2.5">
+            <Coins className="w-6 h-6 text-[var(--warn)]" />
             Credit Packages & Balance
           </h1>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Top up your account balance via bKash, Nagad, Rocket, Upay, or Binance.
+          <p className="mt-1 text-xs text-[var(--t2)] font-medium">
+            Top up your balance via bKash, Nagad, Rocket, Upay, or Binance for disposable mailboxes.
           </p>
         </div>
 
         {/* Current Balance Card */}
-        <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 px-4 py-2.5 rounded-2xl">
-          <Coins className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+        <div className="flex items-center gap-3 bg-[var(--warn-soft)] border border-[var(--warn)]/30 px-4 py-2.5 rounded-[16px] shadow-sm">
+          <Coins className="w-5 h-5 text-[var(--warn)]" />
           <div>
-            <div className="text-[10px] uppercase font-bold text-amber-800 dark:text-amber-400">
+            <div className="text-[10px] uppercase font-bold tracking-wider text-[var(--warn)]">
               Current Balance
             </div>
-            <div className="text-xl font-extrabold text-slate-900 dark:text-white">
-              {currentCredits} <span className="text-xs font-normal text-slate-500">Credits</span>
+            <div className="text-xl font-extrabold text-[var(--t0)] font-mono">
+              {currentCredits} <span className="text-xs font-normal text-[var(--t2)]">Credits</span>
             </div>
           </div>
         </div>
       </div>
 
       {successToast && (
-        <div className="flex items-center gap-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 p-3 text-xs text-emerald-700 dark:text-emerald-300">
-          <Sparkles className="w-4 h-4 shrink-0 text-emerald-600" />
+        <div className="flex items-center gap-2.5 rounded-[12px] bg-[var(--ok-soft)] border border-[var(--ok)]/30 p-3.5 text-xs text-[var(--ok)] font-semibold animate-fade-in">
+          <Sparkles className="w-4 h-4 shrink-0 text-[var(--ok)]" />
           <span>{successToast}</span>
         </div>
       )}
 
-      {/* Credit Packages Grid */}
+      {/* Available Credit Packages */}
       <div>
-        <h2 className="text-base font-bold text-slate-900 dark:text-white mb-4">
-          Available Top-Up Packages
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {packages.map((pkg) => (
-            <Card
-              key={pkg.id}
-              className={`p-6 flex flex-col justify-between relative ${
-                pkg.is_featured
-                  ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-md'
-                  : ''
-              }`}
-              hoverEffect
-            >
-              {pkg.is_featured && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-600 text-white">
-                    Recommended
-                  </span>
-                </div>
-              )}
-
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                  {pkg.name}
-                </h3>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {pkg.description}
-                </p>
-
-                <div className="mt-4 flex items-baseline gap-1">
-                  <span className="text-3xl font-extrabold text-slate-900 dark:text-white">
-                    ৳{pkg.price}
-                  </span>
-                  <span className="text-xs text-slate-400">/{pkg.currency}</span>
-                </div>
-
-                <div className="mt-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-                  <Coins className="w-3.5 h-3.5" />
-                  <span>{pkg.credits} Credits + {pkg.bonus} Bonus</span>
-                </div>
-
-                <ul className="mt-4 space-y-2 text-xs text-slate-600 dark:text-slate-300">
-                  {pkg.features.map((feat, i) => (
-                    <li key={i} className="flex items-center gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <Button
-                  onClick={() => openPaymentModal(pkg)}
-                  variant={pkg.is_featured ? 'primary' : 'outline'}
-                  size="md"
-                  className="w-full"
-                >
-                  Purchase Package
-                </Button>
-              </div>
-            </Card>
-          ))}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-extrabold text-[var(--t0)]">
+            Available Top-Up Packages
+          </h2>
+          <span className="text-xs text-[var(--t2)]">Instant delivery on review</span>
         </div>
+
+        {loading ? (
+          <PackagesGridSkeleton />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {packages.map((pkg) => (
+              <Card
+                key={pkg.id}
+                className={`p-6 flex flex-col justify-between relative bg-[var(--bg-2)] border-[var(--line)] ${
+                  pkg.is_featured
+                    ? 'border-[var(--acc)] ring-2 ring-[var(--acc-soft)] shadow-md'
+                    : ''
+                }`}
+                hoverEffect
+              >
+                {pkg.is_featured && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <span className="px-3 py-0.5 rounded-full text-[10px] font-extrabold bg-[var(--acc)] text-white shadow-sm shadow-[var(--acc-soft)]">
+                      POPULAR CHOICE
+                    </span>
+                  </div>
+                )}
+
+                <div>
+                  <h3 className="text-lg font-bold text-[var(--t0)]">
+                    {pkg.name}
+                  </h3>
+                  <p className="mt-1 text-xs text-[var(--t2)] font-medium">
+                    {pkg.description}
+                  </p>
+
+                  <div className="mt-4 flex items-baseline gap-1">
+                    <span className="text-3xl font-extrabold text-[var(--t0)] font-mono">
+                      ৳{pkg.price}
+                    </span>
+                    <span className="text-xs text-[var(--t2)]">/{pkg.currency}</span>
+                  </div>
+
+                  <div className="mt-2.5 text-xs font-bold text-[var(--acc)] flex items-center gap-1.5 bg-[var(--acc-soft)] px-2.5 py-1 rounded-[8px] w-fit">
+                    <Coins className="w-3.5 h-3.5" />
+                    <span>{pkg.credits} Credits + {pkg.bonus} Bonus</span>
+                  </div>
+
+                  <ul className="mt-5 space-y-2 text-xs text-[var(--t1)]">
+                    {pkg.features.map((feat, i) => (
+                      <li key={i} className="flex items-center gap-2">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[var(--ok)] shrink-0" />
+                        <span>{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-[var(--line)]">
+                  <Button
+                    onClick={() => openPaymentModal(pkg)}
+                    variant={pkg.is_featured ? 'primary' : 'outline'}
+                    size="md"
+                    className="w-full"
+                  >
+                    Purchase Package
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Immutable Credit Transaction History Ledger */}
+      {/* Credit Ledger History */}
       <div>
-        <h2 className="text-base font-bold text-slate-900 dark:text-white mb-4">
-          Credit Ledger Transaction History
-        </h2>
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800 font-semibold text-slate-500 uppercase tracking-wider">
-                <tr>
-                  <th className="px-5 py-3.5">Date</th>
-                  <th className="px-5 py-3.5">Type</th>
-                  <th className="px-5 py-3.5">Amount</th>
-                  <th className="px-5 py-3.5">Balance After</th>
-                  <th className="px-5 py-3.5">Description</th>
-                  <th className="px-5 py-3.5">Reference</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                {transactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                    <td className="px-5 py-3.5 text-slate-500 whitespace-nowrap">
-                      {new Date(tx.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <Badge
-                        variant={
-                          tx.transaction_type === 'purchase' || tx.transaction_type === 'bonus'
-                            ? 'success'
-                            : tx.transaction_type === 'admin_adjustment'
-                            ? 'warning'
-                            : 'neutral'
-                        }
-                        size="sm"
-                      >
-                        {tx.transaction_type}
-                      </Badge>
-                    </td>
-                    <td className="px-5 py-3.5 font-bold">
-                      <span className={tx.amount > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-400'}>
-                        {tx.amount > 0 ? `+${tx.amount}` : tx.amount}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 font-semibold text-slate-900 dark:text-white">
-                      {tx.balance_after}
-                    </td>
-                    <td className="px-5 py-3.5 text-slate-600 dark:text-slate-300">
-                      {tx.description}
-                    </td>
-                    <td className="px-5 py-3.5 font-mono text-slate-400">
-                      {tx.reference_id || '—'}
-                    </td>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-extrabold text-[var(--t0)]">
+            Credit Ledger & Transaction History
+          </h2>
+          <span className="text-xs text-[var(--t2)]">Immutable ledger</span>
+        </div>
+
+        {loading ? (
+          <TableSkeleton rows={4} />
+        ) : (
+          <Card className="overflow-hidden bg-[var(--bg-2)] border-[var(--line)]">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[var(--bg-3)] border-b border-[var(--line)] font-bold text-[var(--t2)] uppercase tracking-wider">
+                  <tr>
+                    <th className="px-5 py-3.5">Date</th>
+                    <th className="px-5 py-3.5">Type</th>
+                    <th className="px-5 py-3.5">Amount</th>
+                    <th className="px-5 py-3.5">Balance After</th>
+                    <th className="px-5 py-3.5">Description</th>
+                    <th className="px-5 py-3.5">Reference</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                </thead>
+                <tbody className="divide-y divide-[var(--line)] font-medium">
+                  {transactions.map((tx) => (
+                    <tr key={tx.id} className="hover:bg-[var(--bg-3)]/60 transition-colors">
+                      <td className="px-5 py-3.5 text-[var(--t2)] whitespace-nowrap">
+                        {new Date(tx.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <Badge
+                          variant={
+                            tx.transaction_type === 'purchase' || tx.transaction_type === 'bonus'
+                              ? 'success'
+                              : tx.transaction_type === 'admin_adjustment'
+                              ? 'warning'
+                              : 'neutral'
+                          }
+                          size="sm"
+                        >
+                          {tx.transaction_type}
+                        </Badge>
+                      </td>
+                      <td className="px-5 py-3.5 font-bold font-mono">
+                        <span className={tx.amount > 0 ? 'text-[var(--ok)]' : 'text-[var(--t1)]'}>
+                          {tx.amount > 0 ? `+${tx.amount}` : tx.amount}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 font-bold text-[var(--t0)] font-mono">
+                        {tx.balance_after}
+                      </td>
+                      <td className="px-5 py-3.5 text-[var(--t1)]">
+                        {tx.description}
+                      </td>
+                      <td className="px-5 py-3.5 font-mono text-[var(--t2)]">
+                        {tx.reference_id || '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
       </div>
 
       {/* Manual Payment Verification Modal */}
@@ -321,20 +319,29 @@ export default function CreditsPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={`Purchase ${selectedPkg?.name}`}
-        description="Follow the steps below to complete manual transfer"
+        description="Follow the steps below to complete the manual transfer"
         maxWidth="lg"
       >
+        {submitting && (
+          <LottieLoader
+            overlay
+            size="md"
+            text="Submitting payment order..."
+            subtext="Allocating audit reference and registering for admin review..."
+          />
+        )}
+
         <form onSubmit={handleSubmitPayment} className="space-y-4">
           {formError && (
-            <div className="flex items-center gap-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 p-3 text-xs text-rose-700 dark:text-rose-300">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+            <div className="flex items-center gap-2 rounded-[12px] bg-[var(--bad-soft)] border border-[var(--bad)]/30 p-3 text-xs text-[var(--bad)] font-semibold animate-fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0 text-[var(--bad)]" />
               <span>{formError}</span>
             </div>
           )}
 
           {/* 1. Method Selector */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            <label className="block text-xs font-bold text-[var(--t1)] mb-1.5 uppercase tracking-wider">
               1. Choose Payment Channel
             </label>
             <div className="grid grid-cols-5 gap-2">
@@ -343,10 +350,10 @@ export default function CreditsPage() {
                   type="button"
                   key={m}
                   onClick={() => setSelectedMethod(m)}
-                  className={`py-2 px-1 text-center rounded-xl border text-xs font-bold uppercase tracking-wider transition-all ${
+                  className={`py-2 px-1 text-center rounded-[10px] border text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
                     selectedMethod === m
-                      ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300'
-                      : 'border-slate-200 dark:border-slate-800 text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      ? 'border-[var(--acc)] bg-[var(--acc-soft)] text-[var(--acc)] shadow-sm'
+                      : 'border-[var(--line)] bg-[var(--bg-3)] text-[var(--t1)] hover:bg-[var(--bg-2)] hover:text-[var(--t0)]'
                   }`}
                 >
                   {m}
@@ -357,22 +364,22 @@ export default function CreditsPage() {
 
           {/* 2. Destination Instructions Box */}
           {activeDestination && (
-            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3.5 space-y-1.5 text-xs">
+            <div className="rounded-[14px] border border-[var(--line)] bg-[var(--bg-3)] p-3.5 space-y-2 text-xs">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500 font-medium">Type: {activeDestination.type}</span>
-                <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                <span className="text-[var(--t2)] font-medium">Type: {activeDestination.type}</span>
+                <span className="font-extrabold text-[var(--acc)] font-mono">
                   Amount: ৳{selectedPkg?.price}
                 </span>
               </div>
-              <div className="flex items-center justify-between font-mono font-bold text-sm text-slate-900 dark:text-white pt-1">
+              <div className="flex items-center justify-between font-mono font-bold text-sm text-[var(--t0)] pt-0.5">
                 <span>Account: {activeDestination.account}</span>
               </div>
               {activeDestination.wallet && (
-                <div className="text-[11px] font-mono text-slate-500 break-all">
+                <div className="text-[11px] font-mono text-[var(--t2)] break-all bg-[var(--bg-inset)] p-2 rounded-[8px] border border-[var(--line)]">
                   {activeDestination.wallet}
                 </div>
               )}
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 pt-1 leading-relaxed">
+              <p className="text-[11px] text-[var(--t2)] pt-1 leading-relaxed">
                 {activeDestination.instructions}
               </p>
             </div>
@@ -380,8 +387,8 @@ export default function CreditsPage() {
 
           {/* 3. Form Input: Sender Number REQUIRED */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Sender Number / Account Identifier <span className="text-rose-500">* (REQUIRED)</span>
+            <label className="block text-xs font-bold text-[var(--t1)] mb-1 uppercase tracking-wider">
+              Sender Number / Account Identifier <span className="text-[var(--bad)]">* (REQUIRED)</span>
             </label>
             <input
               type="text"
@@ -389,32 +396,32 @@ export default function CreditsPage() {
               placeholder="e.g. 017XXXXXXXX or Binance Pay ID"
               value={senderIdentifier}
               onChange={(e) => setSenderIdentifier(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              className="w-full px-3.5 py-2.5 rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] text-xs focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-mono"
             />
           </div>
 
           {/* 4. Form Input: TrxID OPTIONAL */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Transaction ID (TrxID) <span className="text-slate-400 font-normal">(Optional if screenshot attached)</span>
+            <label className="block text-xs font-bold text-[var(--t1)] mb-1 uppercase tracking-wider">
+              Transaction ID (TrxID) <span className="text-[var(--t2)] font-normal normal-case">(Optional if screenshot attached)</span>
             </label>
             <input
               type="text"
               placeholder="e.g. 9B48CK01Z"
               value={transactionId}
               onChange={(e) => setTransactionId(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              className="w-full px-3.5 py-2.5 rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] text-xs focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-mono"
             />
           </div>
 
           {/* 5. Form Input: Screenshot Upload OPTIONAL */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Payment Screenshot Proof <span className="text-slate-400 font-normal">(Optional if TrxID provided)</span>
+            <label className="block text-xs font-bold text-[var(--t1)] mb-1 uppercase tracking-wider">
+              Payment Screenshot Proof <span className="text-[var(--t2)] font-normal normal-case">(Optional if TrxID provided)</span>
             </label>
             <div className="flex items-center gap-3">
-              <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300">
-                <Upload className="w-3.5 h-3.5" />
+              <label className="cursor-pointer inline-flex items-center gap-2 px-3.5 py-2 rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] hover:bg-[var(--bg-2)] hover:border-[var(--line-2)] text-xs font-bold text-[var(--t0)] transition-all">
+                <Upload className="w-3.5 h-3.5 text-[var(--acc)]" />
                 <span>Upload Screenshot</span>
                 <input
                   type="file"
@@ -424,13 +431,13 @@ export default function CreditsPage() {
                 />
               </label>
               {screenshotName && (
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 truncate max-w-[200px]">
+                <span className="text-xs text-[var(--ok)] font-bold truncate max-w-[200px]">
                   ✓ {screenshotName}
                 </span>
               )}
             </div>
-            <p className="mt-1 text-[11px] text-slate-400">
-              * Privacy Guarantee: Screenshot is automatically deleted immediately upon approval to free storage.
+            <p className="mt-1 text-[11px] text-[var(--t2)]">
+              * Privacy Guarantee: Screenshot proof is automatically wiped from server storage immediately upon review approval.
             </p>
           </div>
 

@@ -1,14 +1,24 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Mail, Lock, User, Eye, EyeOff, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { GoogleAuthModal } from '@/components/GoogleAuthModal';
+import { LottieLoader } from '@/components/ui/LottieLoader';
 
-export default function SignupPage() {
+function SignupForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const targetRoute =
+    searchParams.get('returnTo') ||
+    searchParams.get('redirect') ||
+    searchParams.get('next') ||
+    searchParams.get('callbackUrl') ||
+    '/dashboard';
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -16,33 +26,33 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [googleModalOpen, setGoogleModalOpen] = useState(false);
-  const router = useRouter();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (!name || !email || !password || !confirmPassword) {
-      setErrorMsg('Please fill in all required fields.');
+    if (!name.trim() || !email.trim() || !password || !confirmPassword) {
+      setErrorMsg('Please complete all required fields.');
       return;
     }
 
     if (password !== confirmPassword) {
-      setErrorMsg('Passwords do not match.');
+      setErrorMsg('Passwords do not match. Please verify both entries.');
       return;
     }
 
     if (password.length < 6) {
-      setErrorMsg('Password must be at least 6 characters.');
+      setErrorMsg('Password must contain at least 6 characters.');
       return;
     }
 
     if (!acceptTerms) {
-      setErrorMsg('You must accept the Terms of Service & Privacy Policy.');
+      setErrorMsg('You must agree to the Terms of Service & Privacy Policy.');
       return;
     }
 
@@ -52,11 +62,12 @@ export default function SignupPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name,
-          email,
+          name: name.trim(),
+          email: email.trim(),
           password,
           confirmPassword,
           acceptTerms,
+          returnTo: targetRoute,
         }),
       });
 
@@ -65,18 +76,23 @@ export default function SignupPage() {
         throw new Error(data.error || 'Registration failed');
       }
 
-      setSuccessMsg(data.message || 'Account created successfully! Redirecting...');
-      document.cookie = `omnimail_session=${data.user.id}; path=/; max-age=86400`;
-      document.cookie = `omnimail_role=${data.user.role}; path=/; max-age=86400`;
+      setSuccessMsg(data.message || 'Account created successfully! Logging you in...');
+      setIsRedirecting(true);
 
+      // Set cookies on client for immediate route transitions
+      document.cookie = `omnimail_session=${data.user.id}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `omnimail_role=${data.user.role}; path=/; max-age=86400; SameSite=Lax`;
+
+      // Seamless auto-login transition to the exact intended route
+      const destination = data.redirectTo || targetRoute || '/dashboard';
       setTimeout(() => {
-        router.push(data.redirectTo || '/dashboard');
-      }, 700);
+        router.push(destination);
+      }, 900);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
       setErrorMsg(msg);
-    } finally {
       setIsLoading(false);
+      setIsRedirecting(false);
     }
   };
 
@@ -87,6 +103,15 @@ export default function SignupPage() {
         className="pointer-events-none absolute left-1/2 top-1/4 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-60"
         style={{ background: 'radial-gradient(circle, var(--acc-soft), transparent 68%)' }}
       />
+
+      {isRedirecting && (
+        <LottieLoader
+          overlay
+          size="lg"
+          text="Account created! Logging you in..."
+          subtext={`Automatically authenticating and opening ${targetRoute}...`}
+        />
+      )}
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center px-4">
         <Link href="/" className="inline-flex items-center gap-3 group mb-4">
@@ -100,23 +125,23 @@ export default function SignupPage() {
         <h1 className="text-2xl font-extrabold tracking-tight text-[var(--t0)]">
           Create your OmniBey account
         </h1>
-        <p className="mt-2 text-xs text-[var(--t1)]">
-          Get 15 free trial credits to start generating temporary mailboxes instantly.
+        <p className="mt-2 text-xs text-[var(--t2)] font-medium">
+          Get 15 complimentary credits to generate temporary mailboxes and extract OTPs immediately.
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 relative z-10">
-        <Card className="p-6 sm:p-8 border border-[var(--line)] bg-[var(--bg-2)] shadow-[var(--shadow)] backdrop-blur-xl">
+        <Card className="p-6 sm:p-8 border border-[var(--line)] bg-[var(--bg-1)] shadow-[var(--shadow)] backdrop-blur-xl">
           {errorMsg && (
-            <div className="mb-4 flex items-center gap-2.5 rounded-[12px] bg-[#f76d7d]/15 border border-[#f76d7d]/30 p-3 text-xs text-[#f76d7d]">
-              <AlertCircle className="w-4 h-4 shrink-0 text-[#f76d7d]" />
+            <div className="mb-4 flex items-center gap-2.5 rounded-[12px] bg-[var(--bad-soft)] border border-[var(--bad)]/30 p-3 text-xs text-[var(--bad)] animate-fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0 text-[var(--bad)]" />
               <span className="font-semibold">{errorMsg}</span>
             </div>
           )}
 
           {successMsg && (
-            <div className="mb-4 flex items-center gap-2.5 rounded-[12px] bg-[#33d493]/15 border border-[#33d493]/30 p-3 text-xs text-[#33d493]">
-              <ShieldCheck className="w-4 h-4 shrink-0 text-[#33d493]" />
+            <div className="mb-4 flex items-center gap-2.5 rounded-[12px] bg-[var(--ok-soft)] border border-[var(--ok)]/30 p-3 text-xs text-[var(--ok)] animate-fade-in">
+              <ShieldCheck className="w-4 h-4 shrink-0 text-[var(--ok)]" />
               <span className="font-semibold">{successMsg}</span>
             </div>
           )}
@@ -134,7 +159,7 @@ export default function SignupPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Alex Rivera"
-                  className="w-full pl-10 pr-4 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-medium"
                 />
               </div>
             </div>
@@ -151,7 +176,7 @@ export default function SignupPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="alex@example.com"
-                  className="w-full pl-10 pr-4 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-medium"
                 />
               </div>
             </div>
@@ -168,12 +193,12 @@ export default function SignupPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full pl-10 pr-10 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all"
+                  className="w-full pl-10 pr-10 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-medium"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--t2)] hover:text-[var(--t0)]"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--t2)] hover:text-[var(--t0)] cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -192,7 +217,7 @@ export default function SignupPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full pl-10 pr-4 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-medium"
                 />
               </div>
             </div>
@@ -205,7 +230,7 @@ export default function SignupPage() {
                 onChange={(e) => setAcceptTerms(e.target.checked)}
                 className="w-4 h-4 rounded-[4px] border-[var(--line)] text-[var(--acc)] focus:ring-[var(--acc)] bg-[var(--bg-3)] cursor-pointer"
               />
-              <label htmlFor="terms" className="text-xs text-[var(--t1)] cursor-pointer">
+              <label htmlFor="terms" className="text-xs text-[var(--t1)] cursor-pointer select-none">
                 I agree to the{' '}
                 <Link href="/#terms" className="text-[var(--acc)] hover:underline font-semibold">
                   Terms of Service
@@ -225,7 +250,7 @@ export default function SignupPage() {
               isLoading={isLoading}
               rightIcon={<ArrowRight className="w-4 h-4" />}
             >
-              Create Account
+              Create Account & Sign In
             </Button>
           </form>
 
@@ -262,7 +287,10 @@ export default function SignupPage() {
 
         <p className="mt-6 text-center text-xs text-[var(--t2)]">
           Already have an account?{' '}
-          <Link href="/login" className="font-bold text-[var(--acc)] hover:underline">
+          <Link
+            href={`/login${targetRoute !== '/dashboard' ? `?returnTo=${encodeURIComponent(targetRoute)}` : ''}`}
+            className="font-bold text-[var(--acc)] hover:underline"
+          >
             Sign in
           </Link>
         </p>
@@ -274,5 +302,19 @@ export default function SignupPage() {
         onClose={() => setGoogleModalOpen(false)}
       />
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[var(--bg-0)] flex items-center justify-center">
+          <LottieLoader size="md" text="Loading registration..." />
+        </div>
+      }
+    >
+      <SignupForm />
+    </Suspense>
   );
 }
