@@ -1,15 +1,68 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Mail, Menu, X, ArrowRight, LayoutDashboard, ShieldAlert } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Mail, Menu, X, ArrowRight, LayoutDashboard, ShieldAlert, LogOut, User } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { Button } from './ui/Button';
+import { ShimmerButton } from './magicui/shimmer-button';
+import { createClient } from '@/lib/supabase/client';
 
 export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState<'user' | 'admin'>('user');
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    // Check authentication status from cookies and Supabase
+    const checkAuth = async () => {
+      const hasCookieSession = document.cookie.split('; ').some((row) => row.startsWith('omnimail_session='));
+      const roleCookie = document.cookie.split('; ').find((row) => row.startsWith('omnimail_role='))?.split('=')[1];
+
+      if (hasCookieSession) {
+        setIsLoggedIn(true);
+        if (roleCookie === 'admin') setUserRole('admin');
+        return;
+      }
+
+      try {
+        const supabase = createClient();
+        const { data } = await supabase.auth.getSession();
+        if (data?.session) {
+          setIsLoggedIn(true);
+          const email = data.session.user?.email || '';
+          if (email === 'admin@omnibey.com') {
+            setUserRole('admin');
+          }
+        } else {
+          setIsLoggedIn(false);
+        }
+      } catch {
+        setIsLoggedIn(false);
+      }
+    };
+
+    checkAuth();
+  }, [pathname]);
+
+  const handleSignOut = async () => {
+    // Clear cookies
+    document.cookie = 'omnimail_session=; path=/; max-age=0; SameSite=Lax';
+    document.cookie = 'omnimail_role=; path=/; max-age=0; SameSite=Lax';
+
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch {}
+
+    setIsLoggedIn(false);
+    setMobileMenuOpen(false);
+    router.push('/');
+    router.refresh();
+  };
 
   const isAuthPage = pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password';
   if (isAuthPage) return null;
@@ -73,17 +126,49 @@ export const Navbar: React.FC = () => {
         <div className="flex items-center gap-3">
           <ThemeToggle />
 
+          {/* Desktop Auth State Toggle */}
           <div className="hidden sm:flex items-center gap-2">
-            <Link href="/login">
-              <Button variant="ghost" size="sm">
-                Sign In
-              </Button>
-            </Link>
-            <Link href="/signup">
-              <Button variant="primary" size="sm" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
-                Get Started
-              </Button>
-            </Link>
+            {isLoggedIn ? (
+              <div className="flex items-center gap-2">
+                <Link href={userRole === 'admin' ? '/admin' : '/dashboard'}>
+                  <ShimmerButton
+                    background="var(--acc)"
+                    shimmerColor="#ffffff"
+                    className="px-4 py-2 text-xs"
+                  >
+                    <LayoutDashboard className="w-3.5 h-3.5" />
+                    <span>{userRole === 'admin' ? 'Admin Portal' : 'My Dashboard'}</span>
+                  </ShimmerButton>
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  title="Sign Out"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-[11px] text-xs font-semibold text-[var(--t2)] hover:text-[var(--bad)] hover:bg-[var(--bad-soft)] transition-colors cursor-pointer border border-transparent hover:border-[var(--bad)]/25"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Logout</span>
+                </button>
+              </div>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost" size="sm">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <ShimmerButton
+                    background="var(--acc)"
+                    shimmerColor="#ffffff"
+                    className="px-4 py-2 text-xs"
+                  >
+                    <span>Get Started</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </ShimmerButton>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile hamburger toggle */}
@@ -135,17 +220,51 @@ export const Navbar: React.FC = () => {
           >
             Admin Suite
           </Link>
-          <div className="pt-2 flex items-center gap-2">
-            <Link href="/login" className="flex-1">
-              <Button variant="outline" size="sm" className="w-full">
-                Sign In
-              </Button>
-            </Link>
-            <Link href="/signup" className="flex-1">
-              <Button variant="primary" size="sm" className="w-full">
-                Get Started
-              </Button>
-            </Link>
+
+          <div className="pt-2">
+            {isLoggedIn ? (
+              <div className="flex flex-col gap-2">
+                <Link
+                  href={userRole === 'admin' ? '/admin' : '/dashboard'}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full"
+                >
+                  <ShimmerButton
+                    background="var(--acc)"
+                    shimmerColor="#ffffff"
+                    className="w-full py-2.5 text-xs"
+                  >
+                    <LayoutDashboard className="w-3.5 h-3.5" />
+                    <span>{userRole === 'admin' ? 'Admin Portal' : 'Open My Dashboard'}</span>
+                  </ShimmerButton>
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-[11px] border border-[var(--bad)]/30 text-xs font-bold text-[var(--bad)] hover:bg-[var(--bad-soft)] transition-colors cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex-1">
+                  <Button variant="outline" size="sm" className="w-full">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link href="/signup" onClick={() => setMobileMenuOpen(false)} className="flex-1">
+                  <ShimmerButton
+                    background="var(--acc)"
+                    shimmerColor="#ffffff"
+                    className="w-full py-2 text-xs"
+                  >
+                    <span>Get Started</span>
+                  </ShimmerButton>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       )}

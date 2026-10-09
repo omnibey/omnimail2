@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { MailboxListSkeleton } from '@/components/ui/Skeleton';
 import { LottieLoader } from '@/components/ui/LottieLoader';
+import { toast } from '@/components/ui/toast';
 import { EmailAddress } from '@/types';
 
 export default function EmailsPage() {
@@ -42,6 +43,7 @@ export default function EmailsPage() {
   const handleCopy = (id: string, email: string) => {
     navigator.clipboard.writeText(email);
     setCopiedId(id);
+    toast.success('Email copied to clipboard!', { description: email });
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -65,10 +67,14 @@ export default function EmailsPage() {
         setCustomPrefix('');
         setCustomTag('');
         setMessageToast(`Created temporary mailbox ${data.emailAddress.email_address}`);
+        toast.success('Temporary mailbox created!', {
+          description: data.emailAddress.email_address,
+        });
         setTimeout(() => setMessageToast(null), 3500);
       }
     } catch {
       setMessageToast('Failed to create mailbox.');
+      toast.error('Failed to create mailbox');
     } finally {
       setIsGenerating(false);
     }
@@ -85,10 +91,14 @@ export default function EmailsPage() {
       if (data.success && data.emailAddress) {
         setEmails(emails.map((e) => (e.id === emailId ? data.emailAddress : e)));
         setMessageToast('Mailbox lifetime extended by 60 minutes.');
+        toast.success('Mailbox extended!', {
+          description: 'Added 60 minutes to active inbox lifetime.',
+        });
         setTimeout(() => setMessageToast(null), 3000);
       }
     } catch {
       setMessageToast('Failed to extend mailbox lifetime.');
+      toast.error('Failed to extend mailbox');
     }
   };
 
@@ -101,9 +111,13 @@ export default function EmailsPage() {
       });
       setEmails(emails.filter((e) => e.id !== emailId));
       setMessageToast('Temporary mailbox permanently deleted.');
+      toast.error('Temporary mailbox deleted', {
+        description: 'Mailbox and associated messages were permanently removed.',
+      });
       setTimeout(() => setMessageToast(null), 2500);
     } catch {
       setMessageToast('Failed to delete mailbox.');
+      toast.error('Failed to delete mailbox');
     }
   };
 

@@ -1,13 +1,18 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, AlertCircle, Sparkles } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { GoogleAuthModal } from '@/components/GoogleAuthModal';
 import { LottieLoader } from '@/components/ui/LottieLoader';
+import { BorderBeam } from '@/components/magicui/border-beam';
+import { fireRealisticConfetti } from '@/components/magicui/confetti';
+import { GridPattern } from '@/components/magicui/grid-pattern';
+import { ShimmerButton } from '@/components/magicui/shimmer-button';
+import { toast } from '@/components/ui/toast';
+import { createClient } from '@/lib/supabase/client';
 
 function LoginForm() {
   const router = useRouter();
@@ -18,6 +23,9 @@ function LoginForm() {
     searchParams.get('next') ||
     '/dashboard';
 
+  const isRegisteredRedirect = searchParams.get('registered') === '1';
+  const paramEmail = searchParams.get('email') || '';
+
   const errorParam = searchParams.get('error');
   const initialOauthError = errorParam
     ? (errorParam === 'oauth_failed'
@@ -25,7 +33,7 @@ function LoginForm() {
         : decodeURIComponent(errorParam))
     : null;
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(paramEmail);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -33,6 +41,38 @@ function LoginForm() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [googleModalOpen, setGoogleModalOpen] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [hasAutoFilled, setHasAutoFilled] = useState(false);
+
+  // Auto-fill registered credentials from sessionStorage or query param
+  useEffect(() => {
+    try {
+      const storedEmail = sessionStorage.getItem('omnimail_registered_email');
+      const storedPassword = sessionStorage.getItem('omnimail_registered_password');
+
+      const emailToUse = storedEmail || paramEmail;
+      if (emailToUse) {
+        setEmail(emailToUse);
+      }
+      if (storedPassword) {
+        setPassword(storedPassword);
+      }
+
+      if (isRegisteredRedirect || (storedEmail && storedPassword)) {
+        setHasAutoFilled(true);
+        setSuccessMsg(
+          'Registration complete! Your email and password are auto-filled below. Click "Sign In" to continue.'
+        );
+        toast.success('Credentials auto-filled!', {
+          description: 'Your registered account details have been filled. Click Sign In to proceed.',
+        });
+        // Trigger celebratory confetti on arriving from registration
+        fireRealisticConfetti();
+      }
+    } catch (e) {
+      console.warn('Session reading notice:', e);
+    }
+  }, [isRegisteredRedirect, paramEmail]);
 
   const activeError = errorMsg ?? initialOauthError;
 
@@ -42,7 +82,9 @@ function LoginForm() {
     setSuccessMsg(null);
 
     if (!email || !password) {
-      setErrorMsg('Please enter both email and password.');
+      const msg = 'Please enter both email and password.';
+      setErrorMsg(msg);
+      toast.error('Missing credentials', { description: msg });
       return;
     }
 
@@ -59,6 +101,17 @@ function LoginForm() {
         throw new Error(data.error || 'Authentication failed');
       }
 
+      // Fire celebratory confetti for successful login
+      fireRealisticConfetti();
+
+      // Clean up prefill storage
+      try {
+        sessionStorage.removeItem('omnimail_registered_password');
+      } catch {}
+
+      toast.success('Signed in successfully!', {
+        description: 'Welcome back to OmniMail.',
+      });
       setSuccessMsg('Login successful! Redirecting to your dashboard...');
       setIsRedirecting(true);
 
@@ -72,8 +125,34 @@ function LoginForm() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Login failed';
       setErrorMsg(msg);
+      toast.error('Login failed', { description: msg });
       setIsLoading(false);
       setIsRedirecting(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    setErrorMsg(null);
+    try {
+      const supabase = createClient();
+      const redirectUrl = `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(targetRoute)}`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+        },
+      });
+
+      if (error) {
+        console.warn('[Supabase Google OAuth Provider Notice]:', error.message);
+        setGoogleModalOpen(true);
+      }
+    } catch (err) {
+      console.warn('[Google OAuth fallback notice]:', err);
+      setGoogleModalOpen(true);
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -89,9 +168,24 @@ function LoginForm() {
 
   return (
     <div className="relative min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-[var(--bg-0)] text-[var(--t0)] transition-colors overflow-hidden">
+      {/* MagicUI Background Grid Pattern */}
+      <GridPattern
+        width={38}
+        height={38}
+        strokeDasharray="4 2"
+        className="opacity-45 [mask-image:radial-gradient(ellipse_at_center,white_35%,transparent_80%)]"
+        squares={[
+          [2, 3],
+          [6, 5],
+          [9, 2],
+          [13, 7],
+          [4, 10],
+        ]}
+      />
+
       {/* Vela Ambient Glow Background */}
       <div
-        className="pointer-events-none absolute left-1/2 top-1/4 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-60"
+        className="pointer-events-none absolute left-1/2 top-1/4 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-60 blur-3xl"
         style={{ background: 'radial-gradient(circle, var(--acc-soft), transparent 68%)' }}
       />
 
@@ -122,7 +216,26 @@ function LoginForm() {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 relative z-10">
-        <Card className="p-6 sm:p-8 border border-[var(--line)] bg-[var(--bg-1)] shadow-[var(--shadow)] backdrop-blur-xl">
+        <Card className="relative overflow-hidden p-6 sm:p-8 border border-[var(--line)] bg-[var(--bg-1)] shadow-[var(--shadow)] backdrop-blur-xl">
+          {/* MagicUI Border Beam effect on Login Card */}
+          <BorderBeam
+            size={280}
+            duration={12}
+            delay={0}
+            borderWidth={1.5}
+            colorFrom="#7c5cff"
+            colorTo="#33d493"
+          />
+
+          {hasAutoFilled && (
+            <div className="mb-5 p-3 rounded-[12px] bg-[var(--acc-soft)] border border-[var(--acc)]/30 text-xs text-[var(--acc)] flex items-start gap-2.5 animate-fade-in">
+              <Sparkles className="w-4 h-4 shrink-0 mt-0.5 text-[var(--acc)]" />
+              <div className="flex-1 font-semibold">
+                Account created! Your credentials have been auto-filled. Click &quot;Sign In&quot; below.
+              </div>
+            </div>
+          )}
+
           {activeError && (
             <div className="mb-5 p-3.5 rounded-[12px] bg-[var(--bad-soft)] border border-[var(--bad)]/30 text-xs text-[var(--bad)] flex items-start gap-2.5 animate-fade-in">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[var(--bad)]" />
@@ -130,7 +243,7 @@ function LoginForm() {
             </div>
           )}
 
-          {successMsg && (
+          {successMsg && !hasAutoFilled && (
             <div className="mb-5 p-3.5 rounded-[12px] bg-[var(--ok-soft)] border border-[var(--ok)]/30 text-xs text-[var(--ok)] flex items-center gap-2 animate-fade-in">
               <ShieldCheck className="w-4 h-4 shrink-0 text-[var(--ok)]" />
               <div className="font-semibold">{successMsg}</div>
@@ -187,25 +300,27 @@ function LoginForm() {
               </div>
             </div>
 
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              className="w-full mt-2"
-              isLoading={isLoading}
-              rightIcon={<ArrowRight className="w-4 h-4" />}
-            >
-              Sign In to Account
-            </Button>
+            <div className="pt-2">
+              <ShimmerButton
+                type="submit"
+                disabled={isLoading}
+                background="var(--acc)"
+                shimmerColor="#ffffff"
+                className="w-full py-3"
+              >
+                <span>{isLoading ? 'Signing In...' : 'Sign In to Account'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </ShimmerButton>
+            </div>
           </form>
 
           {/* Google Login Button */}
           <div className="mt-6 pt-5 border-t border-[var(--line)]">
             <button
               type="button"
-              disabled={isLoading}
-              onClick={() => setGoogleModalOpen(true)}
-              className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-[12px] border border-[var(--line)] bg-[var(--bg-3)] hover:bg-[var(--bg-2)] hover:border-[var(--line-2)] text-xs font-bold text-[var(--t0)] transition-all active:scale-[0.98] disabled:opacity-60 shadow-sm cursor-pointer"
+              disabled={isLoading || googleLoading}
+              onClick={handleGoogleLogin}
+              className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-[12px] border border-[var(--line)] bg-[var(--bg-3)] hover:bg-[var(--bg-2)] hover:border-[var(--line-2)] text-xs font-bold text-[var(--t0)] transition-all active:scale-[0.98] disabled:opacity-60 shadow-sm cursor-pointer group"
             >
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                 <path
@@ -225,7 +340,7 @@ function LoginForm() {
                   d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.28 6.58l4.04 3.15c.94-2.83 3.58-4.98 6.68-4.98z"
                 />
               </svg>
-              <span>Continue with Google</span>
+              <span>{googleLoading ? 'Connecting to Google...' : 'Continue with Google'}</span>
             </button>
           </div>
 

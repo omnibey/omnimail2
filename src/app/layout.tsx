@@ -4,6 +4,7 @@ import './globals.css';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { DemoSwitcher } from '@/components/DemoSwitcher';
+import { Toaster } from '@/components/ui/sonner';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -78,6 +79,7 @@ export default function RootLayout({
         <main className="flex-1 flex flex-col">{children}</main>
         <Footer />
         <DemoSwitcher />
+        <Toaster />
       </body>
     </html>
   );

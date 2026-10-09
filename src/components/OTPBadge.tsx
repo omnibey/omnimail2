@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { ShieldCheck, Copy, Check, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
+import { toast } from '@/components/ui/toast';
 import { OTPConfidence } from '@/types';
 
 interface OTPBadgeProps {
@@ -21,6 +22,9 @@ export const OTPBadge: React.FC<OTPBadgeProps> = ({
   const handleCopy = () => {
     navigator.clipboard.writeText(code);
     setCopied(true);
+    toast.success('OTP code copied to clipboard!', {
+      description: `Verification token: ${code}`,
+    });
     setTimeout(() => setCopied(false), 2000);
   };
 

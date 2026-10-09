@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { toast } from '@/components/ui/toast';
 import { EmailAddress } from '@/types';
 
 interface QuickEmailGeneratorProps {
@@ -64,6 +65,9 @@ export const QuickEmailGenerator: React.FC<QuickEmailGeneratorProps> = ({
     navigator.clipboard.writeText(currentEmail.email_address);
     setCopied(true);
     setFeedbackMsg('Email address copied to clipboard!');
+    toast.success('Email copied to clipboard!', {
+      description: currentEmail.email_address,
+    });
     setTimeout(() => {
       setCopied(false);
       setFeedbackMsg(null);
@@ -86,10 +90,14 @@ export const QuickEmailGenerator: React.FC<QuickEmailGeneratorProps> = ({
         setGeneratedEmail(data.emailAddress);
         onEmailChanged?.(data.emailAddress);
         setFeedbackMsg(`Generated new address: ${data.emailAddress.email_address}`);
+        toast.success('New temporary email created!', {
+          description: data.emailAddress.email_address,
+        });
         setTimeout(() => setFeedbackMsg(null), 3000);
       }
     } catch {
       setFeedbackMsg('Failed to generate email');
+      toast.error('Failed to generate email address');
     } finally {
       setIsGenerating(false);
     }
@@ -111,10 +119,14 @@ export const QuickEmailGenerator: React.FC<QuickEmailGeneratorProps> = ({
       if (data.success && data.emailAddress) {
         setGeneratedEmail(data.emailAddress);
         setFeedbackMsg('Extended lifetime by 60 minutes!');
+        toast.success('Mailbox extended successfully!', {
+          description: 'Added 60 minutes to active inbox lifetime.',
+        });
         setTimeout(() => setFeedbackMsg(null), 3000);
       }
     } catch {
       setFeedbackMsg('Failed to extend lifetime');
+      toast.error('Failed to extend mailbox lifetime');
     } finally {
       setIsExtending(false);
     }
@@ -135,11 +147,15 @@ export const QuickEmailGenerator: React.FC<QuickEmailGeneratorProps> = ({
       const data = await res.json();
       if (data.success) {
         setFeedbackMsg(`Received test OTP message from ${service}!`);
+        toast.success(`Verification email sent from ${service}!`, {
+          description: 'New incoming message arrived in your dashboard inbox.',
+        });
         onMessageReceived?.();
         setTimeout(() => setFeedbackMsg(null), 4000);
       }
     } catch {
       setFeedbackMsg('Failed to simulate test email');
+      toast.error('Failed to send test simulation email');
     } finally {
       setIsSimulating(false);
     }

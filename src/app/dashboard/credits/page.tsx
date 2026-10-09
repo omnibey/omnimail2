@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Coins, CreditCard, CheckCircle2, ArrowRight, 
-  Upload, AlertCircle, Sparkles, Check 
+  Upload, AlertCircle, Sparkles, Check, Copy 
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { PackagesGridSkeleton, TableSkeleton } from '@/components/ui/Skeleton';
 import { LottieLoader } from '@/components/ui/LottieLoader';
+import { toast } from '@/components/ui/toast';
 import { CreditPackage, CreditTransaction, PaymentMethod, SystemPaymentDestination } from '@/types';
 
 export default function CreditsPage() {
@@ -121,12 +122,17 @@ export default function CreditsPage() {
       }
 
       setIsModalOpen(false);
-      setSuccessToast(`Payment ${data.payment.payment_ref} submitted! An admin will review and approve credits.`);
+      const successText = `Payment ${data.payment.payment_ref} submitted! An admin will review and approve credits.`;
+      setSuccessToast(successText);
+      toast.success('Payment submitted for verification!', {
+        description: `Reference: ${data.payment.payment_ref}. Credits will be credited upon approval.`,
+      });
       loadData();
       setTimeout(() => setSuccessToast(null), 6000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Submission failed';
       setFormError(msg);
+      toast.error('Payment submission failed', { description: msg });
     } finally {
       setSubmitting(false);
     }
@@ -373,6 +379,19 @@ export default function CreditsPage() {
               </div>
               <div className="flex items-center justify-between font-mono font-bold text-sm text-[var(--t0)] pt-0.5">
                 <span>Account: {activeDestination.account}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(activeDestination.account);
+                    toast.success('Account number copied!', {
+                      description: activeDestination.account,
+                    });
+                  }}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-[7px] bg-[var(--acc-soft)] text-[var(--acc)] text-[11px] hover:opacity-80 transition-opacity cursor-pointer font-sans font-bold"
+                >
+                  <Copy className="w-3 h-3" />
+                  <span>Copy</span>
+                </button>
               </div>
               {activeDestination.wallet && (
                 <div className="text-[11px] font-mono text-[var(--t2)] break-all bg-[var(--bg-inset)] p-2 rounded-[8px] border border-[var(--line)]">

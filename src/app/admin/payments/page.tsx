@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { LottieLoader } from '@/components/ui/LottieLoader';
+import { toast } from '@/components/ui/toast';
 import { Payment } from '@/types';
 
 export default function AdminPaymentsPage() {
@@ -60,12 +61,15 @@ export default function AdminPaymentsPage() {
       }
 
       setToastMsg(data.message || 'Payment approved! Credits added and screenshot purged.');
+      toast.success('Payment approved!', {
+        description: `Credits have been credited and payment proof screenshot purged.`,
+      });
       setInspectModalOpen(false);
       fetchPayments();
       setTimeout(() => setToastMsg(null), 5000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Approval failed';
-      alert(msg);
+      toast.error('Approval failed', { description: msg });
     } finally {
       setActionLoading(false);
     }
@@ -94,14 +98,17 @@ export default function AdminPaymentsPage() {
       }
 
       setToastMsg('Payment rejected and reason recorded in immutable audit log.');
+      toast.error('Payment rejected', {
+        description: `Reason: ${rejectionReason || 'Declined by Administrator'}`,
+      });
       setRejectModalOpen(false);
       setInspectModalOpen(false);
       setRejectionReason('');
       fetchPayments();
-      setTimeout(() => setToastMsg(null), 4000);
+      setTimeout(() => setToastMsg(null), 5000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Rejection failed';
-      alert(msg);
+      toast.error('Rejection failed', { description: msg });
     } finally {
       setActionLoading(false);
     }

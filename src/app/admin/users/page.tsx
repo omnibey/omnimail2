@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
+import { toast } from '@/components/ui/toast';
 import { UserProfile } from '@/types';
 
 export default function AdminUsersPage() {
@@ -68,25 +69,31 @@ export default function AdminUsersPage() {
       }
 
       setToastMsg(`Credits updated! New balance for ${selectedUser.email}: ${data.newBalance}`);
+      toast.success('Credits updated successfully!', {
+        description: `New balance for ${selectedUser.email}: ${data.newBalance}`,
+      });
       setAdjustModalOpen(false);
       setAdjustReason('');
       fetchUsers();
       setTimeout(() => setToastMsg(null), 4000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Adjustment error');
+      const msg = err instanceof Error ? err.message : 'Adjustment error';
+      toast.error('Adjustment failed', { description: msg });
     } finally {
       setLoading(false);
     }
   };
 
   const toggleUserStatus = (userId: string) => {
+    let nextStatus = 'active';
     setUsers(users.map(u => {
       if (u.id === userId) {
-        const newStatus = u.account_status === 'active' ? 'suspended' : 'active';
-        return { ...u, account_status: newStatus };
+        nextStatus = u.account_status === 'active' ? 'suspended' : 'active';
+        return { ...u, account_status: nextStatus };
       }
       return u;
     }));
+    toast.info(`Account status changed to ${nextStatus}.`);
     setToastMsg('User account status updated.');
     setTimeout(() => setToastMsg(null), 3000);
   };

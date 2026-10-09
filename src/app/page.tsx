@@ -11,6 +11,11 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { QuickEmailGenerator } from '@/components/QuickEmailGenerator';
+import { GridPattern } from '@/components/magicui/grid-pattern';
+import { ShimmerButton } from '@/components/magicui/shimmer-button';
+import { NumberTicker } from '@/components/magicui/number-ticker';
+import { HyperText } from '@/components/magicui/hyper-text';
+import { TextAnimate } from '@/components/magicui/text-animate';
 import { EmailAddress, CompatibilityItem, CreditPackage } from '@/types';
 
 export default function HomePage() {
@@ -63,9 +68,25 @@ export default function HomePage() {
           1. HERO SECTION (Vela Styling & Ambient Glow)
       ======================================================== */}
       <section className="relative overflow-hidden pt-14 pb-20 md:pt-24 md:pb-32 bg-[var(--bg-0)] transition-colors">
+        {/* MagicUI Background Grid Pattern */}
+        <GridPattern
+          width={44}
+          height={44}
+          strokeDasharray="4 2"
+          className="opacity-40 [mask-image:radial-gradient(ellipse_at_center,white_30%,transparent_78%)]"
+          squares={[
+            [3, 2],
+            [6, 5],
+            [10, 3],
+            [14, 7],
+            [8, 10],
+            [17, 4],
+          ]}
+        />
+
         {/* Ambient Top Glow */}
         <div
-          className="pointer-events-none absolute left-1/2 top-10 h-[560px] w-[700px] -translate-x-1/2 rounded-full opacity-60"
+          className="pointer-events-none absolute left-1/2 top-10 h-[560px] w-[700px] -translate-x-1/2 rounded-full opacity-60 blur-3xl"
           style={{ background: 'radial-gradient(ellipse at center, var(--acc-soft), transparent 70%)' }}
         />
 
@@ -73,11 +94,14 @@ export default function HomePage() {
           <div className="text-center max-w-3xl mx-auto mb-10 md:mb-14">
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[var(--acc-soft)] border border-[var(--acc)]/30 text-xs font-bold text-[var(--acc)] mb-6 animate-fade-in shadow-sm">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>OmniMail Cloud — Built on Vela Design</span>
+              <span>OmniMail Cloud — Built on</span>
+              <HyperText text="Vela Engine" className="font-bold text-[var(--acc)]" />
             </div>
 
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-[var(--t0)] leading-[1.12]">
-              Ephemeral Inboxes.{' '}
+              <TextAnimate animation="blurIn" by="word">
+                Ephemeral Inboxes.
+              </TextAnimate>{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--acc)] via-[#9d86ff] to-[#56a8ff]">
                 Instant Verification.
               </span>
@@ -89,9 +113,14 @@ export default function HomePage() {
 
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link href="/dashboard">
-                <Button variant="primary" size="lg" rightIcon={<ArrowRight className="w-4 h-4" />}>
-                  Create Temporary Email
-                </Button>
+                <ShimmerButton
+                  background="var(--acc)"
+                  shimmerColor="#ffffff"
+                  className="px-6 py-3.5 text-sm shadow-lg shadow-[var(--acc-soft)]"
+                >
+                  <span>Create Temporary Email</span>
+                  <ArrowRight className="w-4 h-4 ml-1.5" />
+                </ShimmerButton>
               </Link>
               <Link href="/signup">
                 <Button variant="secondary" size="lg">
@@ -108,6 +137,38 @@ export default function HomePage() {
               userId="user-demo-1"
               onEmailChanged={(email) => setInitialEmail(email)}
             />
+          </div>
+
+          {/* Live Telemetry Metrics with NumberTicker */}
+          <div className="mt-14 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-4xl mx-auto p-4 rounded-2xl border border-[var(--line)] bg-[var(--bg-1)]/60 backdrop-blur-md shadow-[var(--shadow)]">
+            <div className="text-center p-3">
+              <div className="text-2xl sm:text-3xl font-extrabold text-[var(--t0)] font-mono flex items-center justify-center gap-0.5">
+                <NumberTicker value={142850} />
+                <span className="text-[var(--acc)]">+</span>
+              </div>
+              <div className="text-xs text-[var(--t2)] mt-1 font-medium">Inboxes Generated</div>
+            </div>
+            <div className="text-center p-3 border-l border-[var(--line)]">
+              <div className="text-2xl sm:text-3xl font-extrabold text-[var(--ok)] font-mono flex items-center justify-center gap-0.5">
+                <NumberTicker value={99.8} decimalPlaces={1} />
+                <span>%</span>
+              </div>
+              <div className="text-xs text-[var(--t2)] mt-1 font-medium">OTP Accuracy</div>
+            </div>
+            <div className="text-center p-3 border-l border-[var(--line)]">
+              <div className="text-2xl sm:text-3xl font-extrabold text-[#56a8ff] font-mono flex items-center justify-center gap-0.5">
+                <NumberTicker value={1.4} decimalPlaces={1} />
+                <span>s</span>
+              </div>
+              <div className="text-xs text-[var(--t2)] mt-1 font-medium">Avg Delivery Time</div>
+            </div>
+            <div className="text-center p-3 border-l border-[var(--line)]">
+              <div className="text-2xl sm:text-3xl font-extrabold text-[#f7b84e] font-mono flex items-center justify-center gap-0.5">
+                <NumberTicker value={45} />
+                <span className="text-[#f7b84e]">+</span>
+              </div>
+              <div className="text-xs text-[var(--t2)] mt-1 font-medium">Supported Platforms</div>
+            </div>
           </div>
         </div>
       </section>
@@ -502,22 +563,23 @@ export default function HomePage() {
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link href="/signup">
-              <Button
-                variant="secondary"
-                size="lg"
-                className="bg-white text-[var(--acc)] hover:bg-white/90 border-white shadow-xl font-bold"
+              <ShimmerButton
+                background="#ffffff"
+                shimmerColor="#7c5cff"
+                className="px-7 py-3.5 text-sm !text-[var(--acc)] shadow-2xl font-extrabold hover:!text-[var(--acc)]"
               >
-                Get Started with 15 Free Credits
-              </Button>
+                <span>Get Started with 15 Free Credits</span>
+                <ArrowRight className="w-4 h-4 ml-1.5 text-[var(--acc)]" />
+              </ShimmerButton>
             </Link>
             <Link href="/dashboard">
-              <Button
-                variant="outline"
-                size="lg"
-                className="text-white border-white/60 hover:bg-white/10 font-bold"
+              <button
+                type="button"
+                className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-[12px] border border-white/60 hover:bg-white/10 text-white text-xs font-bold transition-all active:scale-[0.98] cursor-pointer"
               >
-                Launch Web Dashboard
-              </Button>
+                <span>Launch Web Dashboard</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </Link>
           </div>
         </div>

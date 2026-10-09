@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { MetricsGridSkeleton } from '@/components/ui/Skeleton';
+import { toast } from '@/components/ui/toast';
 import { EmailAddress, Message, UserProfile } from '@/types';
 
 type UserTab = 'mailboxes' | 'analytics' | 'credits';
@@ -54,6 +55,9 @@ export default function DashboardOverviewPage() {
   const copyOtp = (otp: string) => {
     navigator.clipboard.writeText(otp);
     setCopiedOtp(otp);
+    toast.success('OTP copied to clipboard!', {
+      description: `Verification code: ${otp}`,
+    });
     setTimeout(() => setCopiedOtp(null), 2000);
   };
 
