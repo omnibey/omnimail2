@@ -22,6 +22,7 @@ import { LottieLoader } from '@/components/ui/LottieLoader';
 import { BorderBeam } from '@/components/magicui/border-beam';
 import { fireRealisticConfetti } from '@/components/magicui/confetti';
 import { GridPattern } from '@/components/magicui/grid-pattern';
+import { GlowingGrid } from '@/components/magicui/glowing-grid';
 import { ShimmerButton } from '@/components/magicui/shimmer-button';
 import { toast } from '@/components/ui/toast';
 import { createClient } from '@/lib/supabase/client';
@@ -338,26 +339,21 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
 
   return (
     <div className="relative min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-[var(--bg-0)] text-[var(--t0)] transition-colors overflow-hidden">
-      {/* Background Pattern */}
-      <GridPattern
-        width={38}
-        height={38}
-        strokeDasharray="4 2"
-        className="opacity-45 [mask-image:radial-gradient(ellipse_at_center,white_35%,transparent_80%)]"
-        squares={[
-          [2, 3],
-          [6, 5],
-          [9, 2],
-          [13, 7],
-          [4, 10],
-        ]}
-      />
-
-      {/* Ambient Glow Background */}
-      <div
-        className="pointer-events-none absolute left-1/2 top-1/4 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-60 blur-3xl"
-        style={{ background: 'radial-gradient(circle, var(--acc-soft), transparent 68%)' }}
-      />
+      {/* Interactive Glowing Grid Background with Cursor Tracking */}
+      <div className="absolute inset-0 pointer-events-none">
+        <GlowingGrid
+          gridSize={40}
+          glowRadius={380}
+          containerClassName="w-full h-full"
+          squares={[
+            [2, 3],
+            [6, 5],
+            [9, 2],
+            [13, 7],
+            [4, 10],
+          ]}
+        />
+      </div>
 
       {isRedirecting && (
         <LottieLoader

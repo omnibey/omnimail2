@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { QuickEmailGenerator } from '@/components/QuickEmailGenerator';
 import { GridPattern } from '@/components/magicui/grid-pattern';
+import { GlowingGrid } from '@/components/magicui/glowing-grid';
 import { ShimmerButton } from '@/components/magicui/shimmer-button';
 import { NumberTicker } from '@/components/magicui/number-ticker';
 import { HyperText } from '@/components/magicui/hyper-text';
@@ -86,13 +87,11 @@ export default function HomePage() {
       {/* ========================================================
           1. HERO SECTION (Vela Styling & Ambient Glow)
       ======================================================== */}
-      <section className="relative overflow-hidden pt-14 pb-20 md:pt-24 md:pb-32 bg-[var(--bg-0)] transition-colors">
-        {/* MagicUI Background Grid Pattern */}
-        <GridPattern
-          width={44}
-          height={44}
-          strokeDasharray="4 2"
-          className="opacity-40 [mask-image:radial-gradient(ellipse_at_center,white_30%,transparent_78%)]"
+      <section className="relative overflow-hidden bg-[var(--bg-0)] transition-colors">
+        <GlowingGrid
+          gridSize={44}
+          glowRadius={420}
+          containerClassName="pt-14 pb-20 md:pt-24 md:pb-32"
           squares={[
             [3, 2],
             [6, 5],
@@ -101,15 +100,8 @@ export default function HomePage() {
             [8, 10],
             [17, 4],
           ]}
-        />
-
-        {/* Ambient Top Glow */}
-        <div
-          className="pointer-events-none absolute left-1/2 top-10 h-[560px] w-[700px] -translate-x-1/2 rounded-full opacity-60 blur-3xl"
-          style={{ background: 'radial-gradient(ellipse at center, var(--acc-soft), transparent 70%)' }}
-        />
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-10 md:mb-14">
             {/* Pill-shaped badge with glowing border */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[var(--acc-soft)] border border-[var(--acc)]/30 text-xs font-bold text-[var(--acc)] mb-6 animate-fade-in shadow-[0_0_24px_-4px_rgba(99,102,241,0.3)] backdrop-blur-md">
@@ -198,7 +190,8 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-      </section>
+      </GlowingGrid>
+    </section>
 
       {/* ========================================================
           2. HOW IT WORKS
