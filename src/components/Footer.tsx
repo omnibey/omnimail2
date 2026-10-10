@@ -17,7 +17,7 @@ export const Footer: React.FC = () => {
                 Omni<span className="text-[var(--acc)]">Mail</span>
               </span>
             </Link>
-            <p className="text-[13px] text-[var(--t1)] max-w-md leading-relaxed">
+            <p className="text-sm text-[var(--t1)] max-w-md leading-relaxed">
               Production-grade temporary email infrastructure with high-accuracy heuristic OTP detection, catch-all dynamic domain routing, and enterprise-grade modular architecture.
             </p>
             <div className="flex items-center gap-2 text-xs text-[var(--ok)] font-medium">
@@ -28,10 +28,10 @@ export const Footer: React.FC = () => {
 
           {/* Product links */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--t0)] mb-4">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-[var(--t0)] mb-4">
               Platform & Features
             </h4>
-            <ul className="space-y-2.5 text-[13px] text-[var(--t1)]">
+            <ul className="space-y-2.5 text-sm text-[var(--t1)]">
               <li>
                 <Link href="/dashboard" className="hover:text-[var(--acc)] transition-colors">
                   Web Dashboard
@@ -62,10 +62,10 @@ export const Footer: React.FC = () => {
 
           {/* Infrastructure & Security */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--t0)] mb-4">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-[var(--t0)] mb-4">
               Security & Reliability
             </h4>
-            <ul className="space-y-2.5 text-[13px] text-[var(--t1)]">
+            <ul className="space-y-2.5 text-sm text-[var(--t1)]">
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-3.5 h-3.5 text-[var(--ok)]" />
                 <span>Zero Inbox Telemetry Persistence</span>

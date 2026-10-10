@@ -25,6 +25,25 @@ export default function HomePage() {
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
 
+  // Redirect to /login if OAuth returned an error directly to the home page (e.g. Supabase fallback)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const url = new URL(window.location.href);
+      const errorParam = url.searchParams.get('error') || '';
+      const errorDesc = url.searchParams.get('error_description') || '';
+      const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+      const hashParams = new URLSearchParams(hash);
+      const hashError = hashParams.get('error') || '';
+      const hashDesc = hashParams.get('error_description') || '';
+
+      const finalError = errorDesc || hashDesc || errorParam || hashError;
+      if (finalError) {
+        window.location.href = `/login?error=${encodeURIComponent(finalError)}`;
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     fetch('/api/email/generate', {
       method: 'POST',
@@ -101,8 +120,8 @@ export default function HomePage() {
 
             {/* Primary Headline */}
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.12]">
-              <span className="text-[#1A1A2E] dark:text-[#f8fafc]">
-                Temporarry or Permanent.
+              <span className="text-[var(--t0)]">
+                Temporary or Permanent.
               </span>{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#6366F1] to-[#4F46E5]">
                 Custom{'  '}{'  '}
@@ -263,7 +282,7 @@ export default function HomePage() {
               <h3 className="text-base font-bold text-[var(--t0)] mb-2">
                 Heuristic OTP Detection
               </h3>
-              <p className="text-xs text-[var(--t1)] leading-relaxed">
+              <p className="text-sm text-[var(--t1)] leading-relaxed">
                 Intelligently detects 4 to 8 digit verification codes and tokens from signup confirmations with confidence grading.
               </p>
             </Card>
@@ -275,7 +294,7 @@ export default function HomePage() {
               <h3 className="text-base font-bold text-[var(--t0)] mb-2">
                 Multi-Provider Abstraction
               </h3>
-              <p className="text-xs text-[var(--t1)] leading-relaxed">
+              <p className="text-sm text-[var(--t1)] leading-relaxed">
                 Currently running OmniBey Mail Gateway. Decoupled provider layer is architected to cleanly accept Gmail and Outlook API providers.
               </p>
             </Card>
@@ -287,7 +306,7 @@ export default function HomePage() {
               <h3 className="text-base font-bold text-[var(--t0)] mb-2">
                 Zero-Knowledge Privacy
               </h3>
-              <p className="text-xs text-[var(--t1)] leading-relaxed">
+              <p className="text-sm text-[var(--t1)] leading-relaxed">
                 No endless data retention. Temporary mailboxes expire automatically, and payment proof screenshots are deleted instantly upon approval.
               </p>
             </Card>
@@ -299,7 +318,7 @@ export default function HomePage() {
               <h3 className="text-base font-bold text-[var(--t0)] mb-2">
                 Manual Multi-Channel Payments
               </h3>
-              <p className="text-xs text-[var(--t1)] leading-relaxed">
+              <p className="text-sm text-[var(--t1)] leading-relaxed">
                 Supports bKash, Nagad, Rocket, Upay, and Binance with idempotent transaction-safe credit allocation and Telegram notifications.
               </p>
             </Card>
@@ -311,7 +330,7 @@ export default function HomePage() {
               <h3 className="text-base font-bold text-[var(--t0)] mb-2">
                 Compatibility Intelligence
               </h3>
-              <p className="text-xs text-[var(--t1)] leading-relaxed">
+              <p className="text-sm text-[var(--t1)] leading-relaxed">
                 Transparent historical telemetry records delivery success rates across popular services (Discord, GitHub, Netflix, OpenAI).
               </p>
             </Card>
@@ -323,7 +342,7 @@ export default function HomePage() {
               <h3 className="text-base font-bold text-[var(--t0)] mb-2">
                 Row Level Security & RBAC
               </h3>
-              <p className="text-xs text-[var(--t1)] leading-relaxed">
+              <p className="text-sm text-[var(--t1)] leading-relaxed">
                 PostgreSQL RLS ensures normal users can never access or modify another user&apos;s data or enter administrative portals.
               </p>
             </Card>
@@ -543,7 +562,7 @@ export default function HomePage() {
                   />
                 </button>
                 {faqOpen === i && (
-                  <div className="px-5 pb-5 text-xs text-[var(--t1)] border-t border-[var(--line)] pt-3 leading-relaxed">
+                  <div className="px-5 pb-5 text-sm text-[var(--t1)] border-t border-[var(--line)] pt-3 leading-relaxed">
                     {faq.a}
                   </div>
                 )}
@@ -565,7 +584,7 @@ export default function HomePage() {
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
             Ready to Protect Your Primary Mailbox?
           </h2>
-          <p className="mt-4 text-white/80 text-sm max-w-xl mx-auto leading-relaxed">
+          <p className="mt-4 text-white text-base max-w-xl mx-auto leading-relaxed font-medium">
             Generate unlimited temporary mailboxes, extract verification codes in seconds, and keep spam away forever.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
