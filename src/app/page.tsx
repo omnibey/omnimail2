@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  ShieldCheck, Zap, ArrowRight, CheckCircle2, 
-  Lock, Sparkles, ChevronDown, 
-  Coins, Search, Cpu, Layers 
+import {
+  ShieldCheck, Zap, ArrowRight, CheckCircle2,
+  Lock, Sparkles, ChevronDown,
+  Coins, Search, Cpu, Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -35,21 +35,21 @@ export default function HomePage() {
       .then((data) => {
         if (data.emailAddress) setInitialEmail(data.emailAddress);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     fetch('/api/compatibility')
       .then((res) => res.json())
       .then((data) => {
         if (data.data) setCompatibilityList(data.data);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     fetch('/api/payments/packages')
       .then((res) => res.json())
       .then((data) => {
         if (data.packages) setPackages(data.packages);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const filteredCompatibility = compatibilityList.filter(
@@ -92,40 +92,48 @@ export default function HomePage() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-10 md:mb-14">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[var(--acc-soft)] border border-[var(--acc)]/30 text-xs font-bold text-[var(--acc)] mb-6 animate-fade-in shadow-sm">
+            {/* Pill-shaped badge with glowing border */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[var(--acc-soft)] border border-[var(--acc)]/30 text-xs font-bold text-[var(--acc)] mb-6 animate-fade-in shadow-[0_0_24px_-4px_rgba(99,102,241,0.3)] backdrop-blur-md">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>OmniMail Cloud — Built on</span>
-              <HyperText text="Vela Engine" className="font-bold text-[var(--acc)]" />
+              <span>OmniMail — Built on</span>
+              <HyperText text="Omnibey Cloud" className="font-bold text-[var(--acc)]" />
             </div>
 
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-[var(--t0)] leading-[1.12]">
-              <TextAnimate animation="blurIn" by="word">
-                Ephemeral Inboxes.
-              </TextAnimate>{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--acc)] via-[#9d86ff] to-[#56a8ff]">
-                Instant Verification.
+            {/* Primary Headline */}
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.12]">
+              <span className="text-[#1A1A2E] dark:text-[#f8fafc]">
+                Temporarry or Permanent.
+              </span>{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#6366F1] to-[#4F46E5]">
+                Custom{'  '}{'  '}
+                <HyperText text="Email Inbox" className="font-bold pl-4 text-[var(--acc)]" />
               </span>
             </h1>
 
-            <p className="mt-5 text-base sm:text-lg md:text-xl text-[var(--t1)] leading-relaxed max-w-2xl mx-auto">
-              Secure, disposable email addresses powered by dynamic catch-all domain routing. Automatic heuristic OTP extraction, zero inbox clutter, and enterprise-grade privacy.
+            {/* Sub-headline */}
+            <p className="mt-5 text-base sm:text-lg md:text-xl text-[var(--t1)] leading-relaxed max-w-2xl mx-auto font-normal">
+              Generate instant disposable emails for quick OTP verifications, or keep a permanent private inbox for your daily workflows. Zero spam, automated code extraction, and 100% privacy.
             </p>
 
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            {/* Two Primary CTAs Side-by-Side */}
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3.5">
               <Link href="/dashboard">
-                <ShimmerButton
-                  background="var(--acc)"
-                  shimmerColor="#ffffff"
-                  className="px-6 py-3.5 text-sm shadow-lg shadow-[var(--acc-soft)]"
+                <button
+                  type="button"
+                  className="flex items-center gap-2 px-6 py-3.5 rounded-[13px] bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white font-bold text-sm shadow-[0_12px_28px_-8px_rgba(99,102,241,0.5)] hover:shadow-[0_16px_32px_-6px_rgba(99,102,241,0.65)] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
                 >
-                  <span>Create Temporary Email</span>
-                  <ArrowRight className="w-4 h-4 ml-1.5" />
-                </ShimmerButton>
+                  <span>Create Instant Temp Mail</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </Link>
               <Link href="/signup">
-                <Button variant="secondary" size="lg">
-                  Get Started Free
-                </Button>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 px-6 py-3.5 rounded-[13px] border border-[var(--line-2)] bg-[var(--bg-1)] hover:bg-[var(--bg-3)] text-[var(--t0)] font-bold text-sm shadow-sm hover:border-[#6366F1]/50 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+                >
+                  <Lock className="w-4 h-4 text-[#6366F1]" />
+                  <span>Create Permanent Inbox</span>
+                </button>
               </Link>
             </div>
           </div>
@@ -377,9 +385,9 @@ export default function HomePage() {
                           {item.success_rate}%
                         </span>
                         <div className="w-16 h-1.5 rounded-full bg-[var(--bg-3)] overflow-hidden">
-                          <div 
-                            className="h-full bg-[var(--ok)] rounded-full" 
-                            style={{ width: `${item.success_rate}%` }} 
+                          <div
+                            className="h-full bg-[var(--ok)] rounded-full"
+                            style={{ width: `${item.success_rate}%` }}
                           />
                         </div>
                       </div>
@@ -421,11 +429,10 @@ export default function HomePage() {
             {packages.map((pkg) => (
               <Card
                 key={pkg.id}
-                className={`p-6 flex flex-col justify-between relative ${
-                  pkg.is_featured
-                    ? 'border-[var(--acc)] shadow-xl shadow-[var(--acc-soft)] ring-2 ring-[var(--acc)]/30'
-                    : ''
-                }`}
+                className={`p-6 flex flex-col justify-between relative ${pkg.is_featured
+                  ? 'border-[var(--acc)] shadow-xl shadow-[var(--acc-soft)] ring-2 ring-[var(--acc)]/30'
+                  : ''
+                  }`}
                 hoverEffect
               >
                 {pkg.is_featured && (

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { toast } from '@/components/ui/toast';
-import { UserProfile } from '@/types';
+import { AccountStatus, UserProfile } from '@/types';
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -85,7 +85,7 @@ export default function AdminUsersPage() {
   };
 
   const toggleUserStatus = (userId: string) => {
-    let nextStatus = 'active';
+    let nextStatus: AccountStatus = 'active';
     setUsers(users.map(u => {
       if (u.id === userId) {
         nextStatus = u.account_status === 'active' ? 'suspended' : 'active';

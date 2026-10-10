@@ -3,11 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Mail, Menu, X, ArrowRight, LayoutDashboard, ShieldAlert, LogOut, User } from 'lucide-react';
+import { Mail, Menu, X, ArrowRight, LayoutDashboard, LogOut, User } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { Button } from './ui/Button';
 import { ShimmerButton } from './magicui/shimmer-button';
 import { createClient } from '@/lib/supabase/client';
+
+import { clientSignOut } from '@/lib/auth-client';
 
 export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -49,19 +51,9 @@ export const Navbar: React.FC = () => {
   }, [pathname]);
 
   const handleSignOut = async () => {
-    // Clear cookies
-    document.cookie = 'omnimail_session=; path=/; max-age=0; SameSite=Lax';
-    document.cookie = 'omnimail_role=; path=/; max-age=0; SameSite=Lax';
-
-    try {
-      const supabase = createClient();
-      await supabase.auth.signOut();
-    } catch {}
-
     setIsLoggedIn(false);
     setMobileMenuOpen(false);
-    router.push('/');
-    router.refresh();
+    await clientSignOut({ redirectTo: '/' });
   };
 
   const isAuthPage = pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password';
@@ -79,9 +71,6 @@ export const Navbar: React.FC = () => {
             <div className="flex items-center gap-1.5">
               <span className="text-lg font-extrabold tracking-tight text-[var(--t0)]">
                 Omni<span className="text-[var(--acc)]">Mail</span>
-              </span>
-              <span className="text-[10px] font-mono font-bold tracking-wider px-1.5 py-0.5 rounded-[6px] bg-[var(--acc-soft)] text-[var(--acc)] border border-[var(--acc)]/25">
-                VELA
               </span>
             </div>
             <p className="text-[10px] text-[var(--t2)] tracking-tight">by OmniBey Cloud</p>
@@ -102,24 +91,6 @@ export const Navbar: React.FC = () => {
           <Link href="/#pricing" className="hover:text-[var(--t0)] transition-colors">
             Pricing
           </Link>
-
-          <div className="h-4 w-px bg-[var(--line)] mx-1" />
-
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] text-[var(--acc)] hover:bg-[var(--acc-soft)] transition-colors"
-          >
-            <LayoutDashboard className="w-3.5 h-3.5" />
-            <span>User Dashboard</span>
-          </Link>
-
-          <Link
-            href="/admin"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] text-[#f7b84e] hover:bg-[#f7b84e]/10 transition-colors"
-          >
-            <ShieldAlert className="w-3.5 h-3.5" />
-            <span>Admin Suite</span>
-          </Link>
         </nav>
 
         {/* Right CTA / Auth & Theme Switcher */}
@@ -137,7 +108,7 @@ export const Navbar: React.FC = () => {
                     className="px-4 py-2 text-xs"
                   >
                     <LayoutDashboard className="w-3.5 h-3.5" />
-                    <span>{userRole === 'admin' ? 'Admin Portal' : 'My Dashboard'}</span>
+                    <span>{userRole === 'admin' ? 'Admin Portal' : 'Dashboard'}</span>
                   </ShimmerButton>
                 </Link>
                 <button
@@ -206,20 +177,6 @@ export const Navbar: React.FC = () => {
           >
             Pricing
           </Link>
-          <Link
-            href="/dashboard"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-[9px] text-[var(--acc)] bg-[var(--acc-soft)]"
-          >
-            User Dashboard
-          </Link>
-          <Link
-            href="/admin"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-[9px] text-[#f7b84e] bg-[#f7b84e]/10"
-          >
-            Admin Suite
-          </Link>
 
           <div className="pt-2">
             {isLoggedIn ? (
@@ -235,7 +192,7 @@ export const Navbar: React.FC = () => {
                     className="w-full py-2.5 text-xs"
                   >
                     <LayoutDashboard className="w-3.5 h-3.5" />
-                    <span>{userRole === 'admin' ? 'Admin Portal' : 'Open My Dashboard'}</span>
+                    <span>{userRole === 'admin' ? 'Admin Portal' : 'Dashboard'}</span>
                   </ShimmerButton>
                 </Link>
                 <button
