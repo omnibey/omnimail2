@@ -10,17 +10,17 @@
     --font-sans: var(--font-sans, "Plus Jakarta Sans", system-ui, -apple-system, sans-serif);
     --font-mono: var(--font-mono, "JetBrains Mono", monospace);
 
-    /* Vela Dark Core Tokens */
+    /* Vela Dark Core Tokens - High Contrast & Vibrancy */
     --bg-0: #090a0f;
     --bg-1: #0c0e15;
     --bg-2: #12141d;
     --bg-3: #1a1d28;
     --bg-inset: #0c0e15;
-    --line: rgba(255, 255, 255, 0.08);
-    --line-2: rgba(255, 255, 255, 0.14);
-    --t0: #f8fafc;
-    --t1: #94a3b8;
-    --t2: #64748b;
+    --line: rgba(255, 255, 255, 0.12);
+    --line-2: rgba(255, 255, 255, 0.20);
+    --t0: #ffffff;
+    --t1: #e2e8f0;
+    --t2: #94a3b8;
     --acc: #7c5cff;
     --acc-2: #9d86ff;
     --acc-soft: rgba(124, 92, 255, 0.16);
@@ -66,11 +66,11 @@
     --bg-2: #ffffff;
     --bg-3: #eef1f8;
     --bg-inset: #f1f3f9;
-    --line: rgba(15, 23, 42, 0.08);
-    --line-2: rgba(15, 23, 42, 0.15);
-    --t0: #0f172a;
-    --t1: #475569;
-    --t2: #64748b;
+    --line: rgba(15, 23, 42, 0.11);
+    --line-2: rgba(15, 23, 42, 0.19);
+    --t0: #020617;
+    --t1: #1e293b;
+    --t2: #475569;
     --acc: #6a4cff;
     --acc-2: #8b6dff;
     --acc-soft: rgba(106, 76, 255, 0.12);
@@ -108,19 +108,33 @@
 }
 
 html {
+  font-size: 17px;
   scroll-behavior: smooth;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (min-width: 1536px) {
+  html {
+    font-size: 17.5px;
+  }
 }
 
 body {
   background-color: var(--bg-0);
   color: var(--t0);
   font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.62;
+  letter-spacing: -0.011em;
   background-image: radial-gradient(var(--line) 1px, transparent 1px);
   background-size: 28px 28px;
   background-attachment: fixed;
   overflow-x: hidden;
   transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* Glass Panels with Vela Tokens */
@@ -332,4 +346,59 @@ body {
 .animate-slide-in-left {
   animation: slideInLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* ========================================================
+   HIGH-CONTRAST & BRIGHTNESS BOOSTERS FOR TEXT
+   Ensures no text is washed-out or hard to read
+======================================================== */
+.dark .text-slate-400,
+[data-theme="dark"] .text-slate-400,
+.dark .text-zinc-400,
+[data-theme="dark"] .text-zinc-400,
+.dark .text-gray-400,
+[data-theme="dark"] .text-gray-400,
+.dark .text-neutral-400,
+[data-theme="dark"] .text-neutral-400 {
+  color: #e2e8f0 !important;
+}
+
+.dark .text-slate-500,
+[data-theme="dark"] .text-slate-500,
+.dark .text-zinc-500,
+[data-theme="dark"] .text-zinc-500,
+.dark .text-gray-500,
+[data-theme="dark"] .text-gray-500,
+.dark .text-neutral-500,
+[data-theme="dark"] .text-neutral-500 {
+  color: #cbd5e1 !important;
+}
+
+.light .text-slate-400,
+[data-theme="light"] .text-slate-400,
+.light .text-zinc-400,
+[data-theme="light"] .text-zinc-400,
+.light .text-gray-400,
+[data-theme="light"] .text-gray-400,
+.light .text-neutral-400,
+[data-theme="light"] .text-neutral-400 {
+  color: #334155 !important;
+}
+
+.light .text-slate-500,
+[data-theme="light"] .text-slate-500,
+.light .text-zinc-500,
+[data-theme="light"] .text-zinc-500,
+.light .text-gray-500,
+[data-theme="light"] .text-gray-500,
+.light .text-neutral-500,
+[data-theme="light"] .text-neutral-500 {
+  color: #1e293b !important;
+}
+
+/* Ensure placeholder texts are sharp and readable */
+::placeholder {
+  color: var(--t2) !important;
+  opacity: 0.95;
+}
+
 

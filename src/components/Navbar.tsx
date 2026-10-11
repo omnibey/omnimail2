@@ -74,12 +74,12 @@ export const Navbar: React.FC = () => {
                 Omni<span className="text-[var(--acc)]">Mail</span>
               </span>
             </div>
-            <p className="text-[10px] text-[var(--t2)] tracking-tight">by OmniBey Cloud</p>
+            <p className="text-xs text-[var(--t2)] tracking-tight font-medium">by OmniBey Cloud</p>
           </div>
         </Link>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center gap-6 text-[13px] font-semibold text-[var(--t1)]">
+        <nav className="hidden md:flex items-center gap-7 text-sm font-semibold text-[var(--t1)]">
           <Link href="/#how-it-works" className="hover:text-[var(--t0)] transition-colors">
             How It Works
           </Link>
@@ -106,7 +106,7 @@ export const Navbar: React.FC = () => {
                   <ShimmerButton
                     background="var(--acc)"
                     shimmerColor="#ffffff"
-                    className="px-4 py-2 text-xs"
+                    className="px-4 py-2 text-sm"
                   >
                     <LayoutDashboard className="w-3.5 h-3.5" />
                     <span>{userRole === 'admin' ? 'Admin Portal' : 'Dashboard'}</span>

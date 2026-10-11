@@ -22,6 +22,7 @@ import { LottieLoader } from '@/components/ui/LottieLoader';
 import { BorderBeam } from '@/components/magicui/border-beam';
 import { fireRealisticConfetti } from '@/components/magicui/confetti';
 import { GridPattern } from '@/components/magicui/grid-pattern';
+import { GlowingGrid } from '@/components/magicui/glowing-grid';
 import { ShimmerButton } from '@/components/magicui/shimmer-button';
 import { toast } from '@/components/ui/toast';
 import { createClient } from '@/lib/supabase/client';
@@ -46,10 +47,13 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
   const paramEmail = searchParams.get('email') || '';
 
   const errorParam = searchParams.get('error');
-  const initialOauthError = errorParam
+  const errorDescParam = searchParams.get('error_description');
+  const initialOauthError = errorDescParam
+    ? decodeURIComponent(errorDescParam.replace(/\+/g, ' '))
+    : errorParam
     ? errorParam === 'oauth_failed'
       ? 'Google authentication was cancelled or interrupted. You can sign in using the Google selector.'
-      : decodeURIComponent(errorParam)
+      : decodeURIComponent(errorParam.replace(/\+/g, ' '))
     : null;
 
   // Tab State: 'login' | 'signup'
@@ -76,11 +80,32 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
   const [isLoading, setIsLoading] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [redirectMessage, setRedirectMessage] = useState('Signing in...');
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(initialOauthError);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [hasAutoFilled, setHasAutoFilled] = useState(false);
   const [googleModalOpen, setGoogleModalOpen] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Inspect URL hash for OAuth errors (e.g. #error=server_error&error_description=...)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash) {
+      try {
+        const hash = window.location.hash.startsWith('#')
+          ? window.location.hash.slice(1)
+          : window.location.hash;
+        const hashParams = new URLSearchParams(hash);
+        const hashDesc = hashParams.get('error_description');
+        const hashErr = hashParams.get('error');
+        if (hashDesc) {
+          setErrorMsg(decodeURIComponent(hashDesc.replace(/\+/g, ' ')));
+        } else if (hashErr) {
+          setErrorMsg(decodeURIComponent(hashErr.replace(/\+/g, ' ')));
+        }
+      } catch (err) {
+        console.warn('Hash error parsing notice:', err);
+      }
+    }
+  }, []);
 
   // Auto-fill registered credentials if present in sessionStorage or query
   useEffect(() => {
@@ -318,10 +343,12 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
 
       if (error) {
         console.warn('[Supabase Google OAuth Notice]:', error.message);
+        setErrorMsg(error.message);
         setGoogleModalOpen(true);
       }
     } catch (err) {
       console.warn('[Google OAuth fallback notice]:', err);
+      setErrorMsg(err instanceof Error ? err.message : 'Google authentication failed');
       setGoogleModalOpen(true);
     } finally {
       setGoogleLoading(false);
@@ -344,26 +371,21 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
 
   return (
     <div className="relative min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-[var(--bg-0)] text-[var(--t0)] transition-colors overflow-hidden">
-      {/* Background Pattern */}
-      <GridPattern
-        width={38}
-        height={38}
-        strokeDasharray="4 2"
-        className="opacity-45 [mask-image:radial-gradient(ellipse_at_center,white_35%,transparent_80%)]"
-        squares={[
-          [2, 3],
-          [6, 5],
-          [9, 2],
-          [13, 7],
-          [4, 10],
-        ]}
-      />
-
-      {/* Ambient Glow Background */}
-      <div
-        className="pointer-events-none absolute left-1/2 top-1/4 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-60 blur-3xl"
-        style={{ background: 'radial-gradient(circle, var(--acc-soft), transparent 68%)' }}
-      />
+      {/* Interactive Glowing Grid Background with Cursor Tracking */}
+      <div className="absolute inset-0 pointer-events-none">
+        <GlowingGrid
+          gridSize={40}
+          glowRadius={380}
+          containerClassName="w-full h-full"
+          squares={[
+            [2, 3],
+            [6, 5],
+            [9, 2],
+            [13, 7],
+            [4, 10],
+          ]}
+        />
+      </div>
 
       {isRedirecting && (
         <LottieLoader
@@ -418,22 +440,22 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
             <button
               type="button"
               onClick={() => switchTab('login')}
-              className={`relative flex-1 py-2 text-xs font-bold transition-colors flex items-center justify-center gap-1.5 z-10 cursor-pointer ${
+              className={`relative flex-1 py-2.5 text-sm font-bold transition-colors flex items-center justify-center gap-2 z-10 cursor-pointer ${
                 activeTab === 'login' ? 'text-[var(--t0)]' : 'text-[var(--t2)] hover:text-[var(--t1)]'
               }`}
             >
-              <LogIn className="w-3.5 h-3.5" />
+              <LogIn className="w-4 h-4" />
               <span>Sign In</span>
             </button>
 
             <button
               type="button"
               onClick={() => switchTab('signup')}
-              className={`relative flex-1 py-2 text-xs font-bold transition-colors flex items-center justify-center gap-1.5 z-10 cursor-pointer ${
+              className={`relative flex-1 py-2.5 text-sm font-bold transition-colors flex items-center justify-center gap-2 z-10 cursor-pointer ${
                 activeTab === 'signup' ? 'text-[var(--t0)]' : 'text-[var(--t2)] hover:text-[var(--t1)]'
               }`}
             >
-              <UserPlus className="w-3.5 h-3.5" />
+              <UserPlus className="w-4 h-4" />
               <span>Create Account</span>
             </button>
           </div>
@@ -478,7 +500,7 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
                       placeholder="user@omnibey.com"
-                      className="w-full pl-10 pr-4 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-medium"
+                      className="w-full pl-10 pr-4 py-3 text-sm rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-medium"
                     />
                   </div>
                 </div>
@@ -503,7 +525,7 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       placeholder="••••••••••••"
-                      className="w-full pl-10 pr-10 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-medium"
+                      className="w-full pl-10 pr-10 py-3 text-sm rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-medium"
                     />
                     <button
                       type="button"
@@ -521,7 +543,7 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
                     disabled={isLoading}
                     background="var(--acc)"
                     shimmerColor="#ffffff"
-                    className="w-full py-3"
+                    className="w-full py-3 text-sm font-bold"
                   >
                     <span>{isLoading ? 'Signing In...' : 'Sign In to Account'}</span>
                     <ArrowRight className="w-4 h-4" />
@@ -535,7 +557,7 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
                   type="button"
                   disabled={isLoading || googleLoading}
                   onClick={handleGoogleAuth}
-                  className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-[12px] border border-[var(--line)] bg-[var(--bg-3)] hover:bg-[var(--bg-2)] hover:border-[var(--line-2)] text-xs font-bold text-[var(--t0)] transition-all active:scale-[0.98] disabled:opacity-60 shadow-sm cursor-pointer group"
+                  className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-[12px] border border-[var(--line)] bg-[var(--bg-3)] hover:bg-[var(--bg-2)] hover:border-[var(--line-2)] text-sm font-bold text-[var(--t0)] transition-all active:scale-[0.98] disabled:opacity-60 shadow-sm cursor-pointer group"
                 >
                   <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                     <path
@@ -599,7 +621,7 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
                       value={signupName}
                       onChange={(e) => setSignupName(e.target.value)}
                       placeholder="Alex Rivera"
-                      className="w-full pl-10 pr-4 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-medium"
+                      className="w-full pl-10 pr-4 py-3 text-sm rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-medium"
                     />
                   </div>
                 </div>
@@ -616,7 +638,7 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
                       placeholder="alex@example.com"
-                      className="w-full pl-10 pr-4 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-medium"
+                      className="w-full pl-10 pr-4 py-3 text-sm rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-medium"
                     />
                   </div>
                 </div>
@@ -633,7 +655,7 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
                       value={signupPassword}
                       onChange={(e) => setSignupPassword(e.target.value)}
                       placeholder="At least 6 characters"
-                      className="w-full pl-10 pr-10 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-medium"
+                      className="w-full pl-10 pr-10 py-3 text-sm rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-medium"
                     />
                     <button
                       type="button"
@@ -657,7 +679,7 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
                       value={signupConfirmPassword}
                       onChange={(e) => setSignupConfirmPassword(e.target.value)}
                       placeholder="Repeat password"
-                      className="w-full pl-10 pr-4 py-2.5 text-xs rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-medium"
+                      className="w-full pl-10 pr-4 py-3 text-sm rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t0)] placeholder-[var(--t2)] focus:outline-none focus:border-[var(--acc)] focus:ring-1 focus:ring-[var(--acc)] transition-all font-medium"
                     />
                   </div>
                 </div>
@@ -688,7 +710,7 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
                     disabled={isLoading}
                     background="var(--acc)"
                     shimmerColor="#ffffff"
-                    className="w-full py-3"
+                    className="w-full py-3 text-sm font-bold"
                   >
                     <span>{isLoading ? 'Creating Account...' : 'Create Account'}</span>
                     <ArrowRight className="w-4 h-4" />
@@ -702,7 +724,7 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
                   type="button"
                   disabled={isLoading || googleLoading}
                   onClick={handleGoogleAuth}
-                  className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-[12px] border border-[var(--line)] bg-[var(--bg-3)] hover:bg-[var(--bg-2)] hover:border-[var(--line-2)] text-xs font-bold text-[var(--t0)] transition-all active:scale-[0.98] disabled:opacity-60 cursor-pointer shadow-sm group"
+                  className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-[12px] border border-[var(--line)] bg-[var(--bg-3)] hover:bg-[var(--bg-2)] hover:border-[var(--line-2)] text-sm font-bold text-[var(--t0)] transition-all active:scale-[0.98] disabled:opacity-60 cursor-pointer shadow-sm group"
                 >
                   <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                     <path

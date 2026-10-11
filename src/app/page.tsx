@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { QuickEmailGenerator } from '@/components/QuickEmailGenerator';
 import { GridPattern } from '@/components/magicui/grid-pattern';
+import { GlowingGrid } from '@/components/magicui/glowing-grid';
 import { ShimmerButton } from '@/components/magicui/shimmer-button';
 import { NumberTicker } from '@/components/magicui/number-ticker';
 import { HyperText } from '@/components/magicui/hyper-text';
@@ -24,6 +25,25 @@ export default function HomePage() {
   const [searchService, setSearchService] = useState('');
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
+
+  // Redirect to /login if OAuth returned an error directly to the home page (e.g. Supabase fallback)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const url = new URL(window.location.href);
+      const errorParam = url.searchParams.get('error') || '';
+      const errorDesc = url.searchParams.get('error_description') || '';
+      const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+      const hashParams = new URLSearchParams(hash);
+      const hashError = hashParams.get('error') || '';
+      const hashDesc = hashParams.get('error_description') || '';
+
+      const finalError = errorDesc || hashDesc || errorParam || hashError;
+      if (finalError) {
+        window.location.href = `/login?error=${encodeURIComponent(finalError)}`;
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     fetch('/api/email/generate', {
@@ -67,13 +87,11 @@ export default function HomePage() {
       {/* ========================================================
           1. HERO SECTION (Vela Styling & Ambient Glow)
       ======================================================== */}
-      <section className="relative overflow-hidden pt-14 pb-20 md:pt-24 md:pb-32 bg-[var(--bg-0)] transition-colors">
-        {/* MagicUI Background Grid Pattern */}
-        <GridPattern
-          width={44}
-          height={44}
-          strokeDasharray="4 2"
-          className="opacity-40 [mask-image:radial-gradient(ellipse_at_center,white_30%,transparent_78%)]"
+      <section className="relative overflow-hidden bg-[var(--bg-0)] transition-colors">
+        <GlowingGrid
+          gridSize={44}
+          glowRadius={420}
+          containerClassName="pt-14 pb-20 md:pt-24 md:pb-32"
           squares={[
             [3, 2],
             [6, 5],
@@ -82,15 +100,8 @@ export default function HomePage() {
             [8, 10],
             [17, 4],
           ]}
-        />
-
-        {/* Ambient Top Glow */}
-        <div
-          className="pointer-events-none absolute left-1/2 top-10 h-[560px] w-[700px] -translate-x-1/2 rounded-full opacity-60 blur-3xl"
-          style={{ background: 'radial-gradient(ellipse at center, var(--acc-soft), transparent 70%)' }}
-        />
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-10 md:mb-14">
             {/* Pill-shaped badge with glowing border */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[var(--acc-soft)] border border-[var(--acc)]/30 text-xs font-bold text-[var(--acc)] mb-6 animate-fade-in shadow-[0_0_24px_-4px_rgba(99,102,241,0.3)] backdrop-blur-md">
@@ -101,8 +112,8 @@ export default function HomePage() {
 
             {/* Primary Headline */}
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.12]">
-              <span className="text-[#1A1A2E] dark:text-[#f8fafc]">
-                Temporarry or Permanent.
+              <span className="text-[var(--t0)]">
+                Temporary or Permanent.
               </span>{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#6366F1] to-[#4F46E5]">
                 Custom{'  '}{'  '}
@@ -179,7 +190,8 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-      </section>
+      </GlowingGrid>
+    </section>
 
       {/* ========================================================
           2. HOW IT WORKS
@@ -263,7 +275,7 @@ export default function HomePage() {
               <h3 className="text-base font-bold text-[var(--t0)] mb-2">
                 Heuristic OTP Detection
               </h3>
-              <p className="text-xs text-[var(--t1)] leading-relaxed">
+              <p className="text-sm text-[var(--t1)] leading-relaxed">
                 Intelligently detects 4 to 8 digit verification codes and tokens from signup confirmations with confidence grading.
               </p>
             </Card>
@@ -275,7 +287,7 @@ export default function HomePage() {
               <h3 className="text-base font-bold text-[var(--t0)] mb-2">
                 Multi-Provider Abstraction
               </h3>
-              <p className="text-xs text-[var(--t1)] leading-relaxed">
+              <p className="text-sm text-[var(--t1)] leading-relaxed">
                 Currently running OmniBey Mail Gateway. Decoupled provider layer is architected to cleanly accept Gmail and Outlook API providers.
               </p>
             </Card>
@@ -287,7 +299,7 @@ export default function HomePage() {
               <h3 className="text-base font-bold text-[var(--t0)] mb-2">
                 Zero-Knowledge Privacy
               </h3>
-              <p className="text-xs text-[var(--t1)] leading-relaxed">
+              <p className="text-sm text-[var(--t1)] leading-relaxed">
                 No endless data retention. Temporary mailboxes expire automatically, and payment proof screenshots are deleted instantly upon approval.
               </p>
             </Card>
@@ -299,7 +311,7 @@ export default function HomePage() {
               <h3 className="text-base font-bold text-[var(--t0)] mb-2">
                 Manual Multi-Channel Payments
               </h3>
-              <p className="text-xs text-[var(--t1)] leading-relaxed">
+              <p className="text-sm text-[var(--t1)] leading-relaxed">
                 Supports bKash, Nagad, Rocket, Upay, and Binance with idempotent transaction-safe credit allocation and Telegram notifications.
               </p>
             </Card>
@@ -311,7 +323,7 @@ export default function HomePage() {
               <h3 className="text-base font-bold text-[var(--t0)] mb-2">
                 Compatibility Intelligence
               </h3>
-              <p className="text-xs text-[var(--t1)] leading-relaxed">
+              <p className="text-sm text-[var(--t1)] leading-relaxed">
                 Transparent historical telemetry records delivery success rates across popular services (Discord, GitHub, Netflix, OpenAI).
               </p>
             </Card>
@@ -323,7 +335,7 @@ export default function HomePage() {
               <h3 className="text-base font-bold text-[var(--t0)] mb-2">
                 Row Level Security & RBAC
               </h3>
-              <p className="text-xs text-[var(--t1)] leading-relaxed">
+              <p className="text-sm text-[var(--t1)] leading-relaxed">
                 PostgreSQL RLS ensures normal users can never access or modify another user&apos;s data or enter administrative portals.
               </p>
             </Card>
@@ -543,7 +555,7 @@ export default function HomePage() {
                   />
                 </button>
                 {faqOpen === i && (
-                  <div className="px-5 pb-5 text-xs text-[var(--t1)] border-t border-[var(--line)] pt-3 leading-relaxed">
+                  <div className="px-5 pb-5 text-sm text-[var(--t1)] border-t border-[var(--line)] pt-3 leading-relaxed">
                     {faq.a}
                   </div>
                 )}
@@ -565,7 +577,7 @@ export default function HomePage() {
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
             Ready to Protect Your Primary Mailbox?
           </h2>
-          <p className="mt-4 text-white/80 text-sm max-w-xl mx-auto leading-relaxed">
+          <p className="mt-4 text-white text-base max-w-xl mx-auto leading-relaxed font-medium">
             Generate unlimited temporary mailboxes, extract verification codes in seconds, and keep spam away forever.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
