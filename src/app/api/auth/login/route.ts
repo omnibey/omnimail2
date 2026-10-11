@@ -15,10 +15,10 @@ export async function POST(request: Request) {
 
     const cleanEmail = email.trim().toLowerCase();
     const role = cleanEmail === 'admin@omnibey.com' ? 'admin' : 'user';
-    let supabaseUserId: string | null = null;
-    let userName = cleanEmail.split('@')[0];
+    let authenticatedUser = null;
+    let authSource = 'none';
 
-    // 1. Authenticate with Supabase Auth
+    // 1. Try Supabase Auth
     try {
       const supabase = await createClient();
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -26,75 +26,103 @@ export async function POST(request: Request) {
         password: password,
       });
 
-      if (!signInError && signInData.user) {
-        supabaseUserId = signInData.user.id;
-        userName = signInData.user.user_metadata?.full_name || 
-                   signInData.user.user_metadata?.name || 
-                   userName;
+      if (!signInError && signInData?.user) {
+        authSource = 'supabase';
+        const sbUser = signInData.user;
+        const userName =
+          sbUser.user_metadata?.full_name ||
+          sbUser.user_metadata?.name ||
+          cleanEmail.split('@')[0];
 
-        // Ensure profile is up to date in Supabase public.profiles table
-        await supabase.from('profiles').upsert({
-          id: signInData.user.id,
-          name: userName,
-          email: cleanEmail,
-          role: role,
-          account_status: 'active',
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
-      } else {
-        // If user does not exist in Supabase Auth yet, create/sign them up automatically
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: cleanEmail,
-          password: password,
-          options: {
-            data: { full_name: userName, role },
-          },
-        });
-
-        if (!signUpError && signUpData.user) {
-          supabaseUserId = signUpData.user.id;
-          // Save to public.profiles
-          await supabase.from('profiles').upsert({
-            id: signUpData.user.id,
-            name: userName,
-            email: cleanEmail,
-            role: role,
-            credits: 15,
-            account_status: 'active',
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'id' });
+        let repoUser = await OmniMailRepository.getUserByEmail(cleanEmail);
+        if (!repoUser) {
+          repoUser = await OmniMailRepository.createUser(
+            userName,
+            cleanEmail,
+            role,
+            password,
+            sbUser.id
+          );
+        } else {
+          repoUser.id = sbUser.id;
+          repoUser.password = password;
         }
+
+        authenticatedUser = {
+          ...repoUser,
+          id: sbUser.id,
+        };
+
+        // Sync with public.profiles table in Supabase
+        try {
+          await supabase.from('profiles').upsert(
+            {
+              id: sbUser.id,
+              name: userName,
+              email: cleanEmail,
+              role: role,
+              account_status: 'active',
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'id' }
+          );
+        } catch {}
       }
     } catch (sbErr) {
       console.warn('[Login] Supabase auth notice:', sbErr);
     }
 
-    // 2. Fetch or create in OmniMailRepository
-    let user = await OmniMailRepository.getUserByEmail(cleanEmail);
-    if (!user) {
-      user = await OmniMailRepository.createUser(userName, cleanEmail, role);
+    // 2. If not authenticated via Supabase, verify with local store
+    if (!authenticatedUser) {
+      const localVerification = await OmniMailRepository.verifyUserPassword(cleanEmail, password);
+      if (localVerification.valid && localVerification.user) {
+        authSource = 'local';
+        authenticatedUser = localVerification.user;
+      } else {
+        // Authentication strictly FAILED - return 401 unauthorized
+        const failureReason =
+          localVerification.error || 'Incorrect email or password. Please verify your credentials.';
+        return NextResponse.json(
+          { success: false, error: failureReason },
+          { status: 401 }
+        );
+      }
     }
 
-    if (user.account_status === 'suspended') {
+    // Check account status
+    if (authenticatedUser.account_status === 'suspended') {
       return NextResponse.json(
         { success: false, error: 'Account suspended. Please contact OmniBey support.' },
         { status: 403 }
       );
     }
 
-    const effectiveUser = {
-      ...user,
-      id: supabaseUserId || user.id,
-    };
+    const targetRoute = authenticatedUser.role === 'admin' ? '/admin' : '/dashboard';
 
     const response = NextResponse.json({
       success: true,
-      user: effectiveUser,
-      redirectTo: user.role === 'admin' ? '/admin' : '/dashboard',
+      user: {
+        id: authenticatedUser.id,
+        name: authenticatedUser.name,
+        email: authenticatedUser.email,
+        role: authenticatedUser.role,
+        credits: authenticatedUser.credits,
+      },
+      redirectTo: targetRoute,
+      authSource,
     });
 
-    response.cookies.set('omnimail_session', effectiveUser.id, { path: '/', maxAge: 86400 });
-    response.cookies.set('omnimail_role', user.role, { path: '/', maxAge: 86400 });
+    // Set secure authentication cookies
+    response.cookies.set('omnimail_session', authenticatedUser.id, {
+      path: '/',
+      maxAge: 86400 * 7,
+      sameSite: 'lax',
+    });
+    response.cookies.set('omnimail_role', authenticatedUser.role, {
+      path: '/',
+      maxAge: 86400 * 7,
+      sameSite: 'lax',
+    });
 
     return response;
   } catch (err: unknown) {

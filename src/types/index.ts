@@ -15,6 +15,7 @@ export interface UserProfile {
   account_status: AccountStatus;
   google_account_email?: string;
   avatar_url?: string;
+  password?: string;
   created_at: string;
   updated_at: string;
 }

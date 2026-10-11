@@ -21,12 +21,13 @@ export const Navbar: React.FC = () => {
   useEffect(() => {
     // Check authentication status from cookies and Supabase
     const checkAuth = async () => {
-      const hasCookieSession = document.cookie.split('; ').some((row) => row.startsWith('omnimail_session='));
+      const sessionCookie = document.cookie.split('; ').find((row) => row.startsWith('omnimail_session='))?.split('=')[1];
+      const hasCookieSession = Boolean(sessionCookie && sessionCookie.trim().length > 0);
       const roleCookie = document.cookie.split('; ').find((row) => row.startsWith('omnimail_role='))?.split('=')[1];
 
       if (hasCookieSession) {
         setIsLoggedIn(true);
-        if (roleCookie === 'admin') setUserRole('admin');
+        setUserRole(roleCookie === 'admin' ? 'admin' : 'user');
         return;
       }
 

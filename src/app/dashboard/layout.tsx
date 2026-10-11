@@ -23,9 +23,9 @@ export default function DashboardLayout({
   return (
     <div className="flex-1 flex flex-col md:flex-row min-h-[calc(100vh-4rem)] bg-[var(--bg-0)] transition-colors">
       <DashboardSidebar
-        userCredits={user?.credits ?? 45}
-        userName={user?.name ?? 'Alex Rivera'}
-        userEmail={user?.email ?? 'user@omnibey.com'}
+        userCredits={user?.credits ?? 15}
+        userName={user?.name ?? 'My Account'}
+        userEmail={user?.email ?? ''}
       />
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {children}

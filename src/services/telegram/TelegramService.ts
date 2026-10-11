@@ -64,7 +64,7 @@ export class TelegramService {
       `*Status:* Pending Verification`,
       ``,
       `_Review & verify via OmniMail Admin Panel:_`,
-      `${process.env.NEXT_PUBLIC_APP_URL || 'https://omnibey.com'}/admin/payments`
+      `${process.env.NEXT_PUBLIC_APP_URL || 'https://mail.omnibey.com'}/admin/payments`
     ].join('\n');
 
     return this.sendMessage(message);

@@ -3,10 +3,14 @@ import { PaymentService } from '@/services/payment/PaymentService';
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const { userId, packageId, paymentMethod, senderIdentifier, transactionId, screenshotBase64, screenshotName } = body;
 
-    const effectiveUserId = userId || 'user-demo-1';
+    const cookieHeader = request.headers.get('cookie') || '';
+    const match = cookieHeader.match(/omnimail_session=([^;]+)/);
+    const sessionUserId = match ? decodeURIComponent(match[1].trim()) : null;
+
+    const effectiveUserId = userId || sessionUserId || 'user-demo-1';
 
     const payment = await PaymentService.validateAndSubmit(effectiveUserId, {
       package_id: packageId,

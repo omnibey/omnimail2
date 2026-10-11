@@ -29,13 +29,16 @@ export default function DashboardOverviewPage() {
   const loadDashboardData = useCallback(async () => {
     try {
       setRefreshing(true);
-      const [userRes, emailsRes, msgsRes] = await Promise.all([
-        fetch('/api/auth/session').then((r) => r.json()),
-        fetch('/api/email/generate?userId=user-demo-1').then((r) => r.json()),
-        fetch('/api/inbox?userId=user-demo-1').then((r) => r.json()),
+      const userRes = await fetch('/api/auth/session').then((r) => r.json());
+      const currentUser = userRes.user;
+      if (currentUser) setUser(currentUser);
+
+      const userQuery = currentUser?.id ? `?userId=${encodeURIComponent(currentUser.id)}` : '';
+      const [emailsRes, msgsRes] = await Promise.all([
+        fetch(`/api/email/generate${userQuery}`).then((r) => r.json()),
+        fetch(`/api/inbox${userQuery}`).then((r) => r.json()),
       ]);
 
-      if (userRes.user) setUser(userRes.user);
       if (emailsRes.emails?.length > 0) setActiveEmail(emailsRes.emails[0]);
       if (msgsRes.messages) setMessages(msgsRes.messages);
     } catch (err) {
@@ -68,7 +71,7 @@ export default function DashboardOverviewPage() {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[var(--t0)]">
-              Welcome back, {user?.name || 'Alex Rivera'}
+              Welcome back, {user?.name || 'OmniMail User'}
             </h1>
             <span className="px-2 py-0.5 rounded-[6px] text-[10px] font-mono font-bold bg-[var(--acc-soft)] text-[var(--acc)] border border-[var(--acc)]/30">
               PRO TIER

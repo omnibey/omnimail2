@@ -7,11 +7,18 @@ export async function GET(request: Request) {
   const code = searchParams.get('code');
   const error = searchParams.get('error');
   const errorDescription = searchParams.get('error_description');
-  const next = searchParams.get('next') ?? '/dashboard';
+  const rawNext = searchParams.get('next') ?? '/dashboard';
+
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
+  const canonicalOrigin = host.includes('.vercel.app') || origin.includes('.vercel.app')
+    ? (process.env.NEXT_PUBLIC_APP_URL || 'https://mail.omnibey.com')
+    : origin;
+
+  const next = rawNext && rawNext !== '/' && rawNext !== '/login' && rawNext !== '/signup' ? rawNext : '/dashboard';
 
   if (error) {
     console.warn('[OAuth Callback Error from Provider]:', error, errorDescription);
-    const redirectUrl = new URL('/login', origin);
+    const redirectUrl = new URL('/login', canonicalOrigin);
     redirectUrl.searchParams.set('error', errorDescription || error);
     return NextResponse.redirect(redirectUrl.toString());
   }
@@ -51,11 +58,11 @@ export async function GET(request: Request) {
           console.warn('[OAuth Callback] Supabase profiles table upsert notice:', dbErr);
         }
 
-        // 2. Also register in local repository
-        await OmniMailRepository.createUser(fullName, email, role);
+        // 2. Register in local repository
+        await OmniMailRepository.createUser(fullName, email, role, undefined, user.id);
 
         const destination = role === 'admin' ? '/admin' : next;
-        const response = NextResponse.redirect(`${origin}${destination}`);
+        const response = NextResponse.redirect(`${canonicalOrigin}${destination}`);
         response.cookies.set('omnimail_session', user.id, {
           path: '/',
           maxAge: 86400 * 7,
@@ -70,7 +77,7 @@ export async function GET(request: Request) {
       } else if (exchangeError) {
         console.error('[OAuth Callback] Code exchange error:', exchangeError.message);
         return NextResponse.redirect(
-          `${origin}/login?error=${encodeURIComponent(exchangeError.message)}`
+          `${canonicalOrigin}/login?error=${encodeURIComponent(exchangeError.message)}`
         );
       }
     } catch (exchangeErr) {
@@ -78,5 +85,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=oauth_failed`);
+  return NextResponse.redirect(`${canonicalOrigin}/login?error=oauth_failed`);
 }

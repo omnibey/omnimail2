@@ -4,8 +4,14 @@ import { OmniMailRepository } from '@/lib/store/repository';
 
 export async function POST(request: Request) {
   try {
-    const { userId, customPrefix, userServiceTag, expiresInMinutes } = await request.json();
-    const effectiveUserId = userId || 'user-demo-1';
+    const body = await request.json().catch(() => ({}));
+    const { userId, customPrefix, userServiceTag, expiresInMinutes } = body;
+
+    const cookieHeader = request.headers.get('cookie') || '';
+    const match = cookieHeader.match(/omnimail_session=([^;]+)/);
+    const sessionUserId = match ? decodeURIComponent(match[1].trim()) : null;
+
+    const effectiveUserId = userId || sessionUserId || 'user-demo-1';
 
     const provider = new OmniBeyProvider();
     const newAddress = await provider.createAddress({
@@ -28,8 +34,34 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const userId = searchParams.get('userId') || 'user-demo-1';
+  const cookieHeader = request.headers.get('cookie') || '';
+  const match = cookieHeader.match(/omnimail_session=([^;]+)/);
+  const sessionUserId = match ? decodeURIComponent(match[1].trim()) : null;
 
-  const emails = await OmniMailRepository.getEmailAddressesByUser(userId);
+  const userId = searchParams.get('userId') || sessionUserId || 'user-demo-1';
+
+  let emails = await OmniMailRepository.getEmailAddressesByUser(userId);
+
+  // If user has no mailboxes yet, automatically generate one for them
+  if (emails.length === 0 && userId !== 'user-demo-1') {
+    try {
+      const user = await OmniMailRepository.getCurrentUser(userId);
+      if (user) {
+        const cleanPrefix = (user.email.split('@')[0] || 'box').replace(/[^a-z0-9]/gi, '').toLowerCase();
+        const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+        const provider = new OmniBeyProvider();
+        const autoBox = await provider.createAddress({
+          userId: user.id,
+          customPrefix: `${cleanPrefix.slice(0, 8)}_${randomSuffix}`,
+          userServiceTag: 'Primary Mailbox',
+          expiresInMinutes: 60,
+        });
+        emails = [autoBox];
+      }
+    } catch (e) {
+      console.warn('Auto mailbox init notice:', e);
+    }
+  }
+
   return NextResponse.json({ emails });
 }

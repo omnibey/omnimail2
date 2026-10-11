@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     'Vela dashboard',
   ],
   authors: [{ name: 'OmniBey Team', url: 'https://omnibey.com' }],
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://omnibey.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://mail.omnibey.com'),
 };
 
 export default function RootLayout({

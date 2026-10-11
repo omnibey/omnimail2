@@ -26,7 +26,7 @@ export default function InboxPage() {
       setLoading(true);
       const url = selectedEmailFilter !== 'all'
         ? `/api/inbox?emailAddressId=${selectedEmailFilter}`
-        : '/api/inbox?userId=user-demo-1';
+        : '/api/inbox';
 
       const res = await fetch(url);
       const data = await res.json();
@@ -49,11 +49,11 @@ export default function InboxPage() {
       try {
         const url = selectedEmailFilter !== 'all'
           ? `/api/inbox?emailAddressId=${selectedEmailFilter}`
-          : '/api/inbox?userId=user-demo-1';
+          : '/api/inbox';
 
         const [msgsRes, emailsRes] = await Promise.all([
           fetch(url).then((r) => r.json()),
-          fetch('/api/email/generate?userId=user-demo-1').then((r) => r.json()),
+          fetch('/api/email/generate').then((r) => r.json()),
         ]);
 
         if (!ignore) {

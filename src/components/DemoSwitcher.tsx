@@ -11,13 +11,11 @@ export const DemoSwitcher: React.FC = () => {
 
   const switchRole = (newRole: 'user' | 'admin') => {
     setRole(newRole);
+    const targetUserId = newRole === 'admin' ? 'user-admin-1' : 'user-demo-1';
+    document.cookie = `omnimail_session=${targetUserId}; path=/; max-age=86400`;
     document.cookie = `omnimail_role=${newRole}; path=/; max-age=86400`;
     setOpen(false);
-    if (newRole === 'admin') {
-      router.push('/admin');
-    } else {
-      router.push('/dashboard');
-    }
+    window.location.href = newRole === 'admin' ? '/admin' : '/dashboard';
   };
 
   return (

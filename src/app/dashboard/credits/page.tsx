@@ -37,7 +37,7 @@ export default function CreditsPage() {
     try {
       const [pkgRes, histRes] = await Promise.all([
         fetch('/api/payments/packages').then((r) => r.json()),
-        fetch('/api/payments/history?userId=user-demo-1').then((r) => r.json()),
+        fetch('/api/payments/history').then((r) => r.json()),
       ]);
       if (pkgRes.packages) setPackages(pkgRes.packages);
       if (pkgRes.destinations) setDestinations(pkgRes.destinations);
@@ -106,7 +106,6 @@ export default function CreditsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: 'user-demo-1',
           packageId: selectedPkg.id,
           paymentMethod: selectedMethod,
           senderIdentifier: senderIdentifier.trim(),

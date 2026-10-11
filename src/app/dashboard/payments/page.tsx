@@ -15,7 +15,7 @@ export default function PaymentsPage() {
 
   const fetchPayments = () => {
     setLoading(true);
-    fetch('/api/payments/history?userId=user-demo-1')
+    fetch('/api/payments/history')
       .then((res) => res.json())
       .then((data) => {
         if (data.payments) setPayments(data.payments);

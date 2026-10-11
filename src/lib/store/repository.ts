@@ -56,11 +56,58 @@ const store = globalStore.__omnimail_store;
 
 export class OmniMailRepository {
   // ================= USERS & AUTH =================
-  public static async getCurrentUser(userId: string = 'user-demo-1'): Promise<UserProfile | null> {
-    return store.users.get(userId) || null;
+  public static async getCurrentUser(userId?: string): Promise<UserProfile | null> {
+    if (!userId) return null;
+    const direct = store.users.get(userId);
+    if (direct) return direct;
+
+    // Check by email or id
+    for (const user of store.users.values()) {
+      if (user.id === userId || user.email.toLowerCase() === userId.toLowerCase()) {
+        return user;
+      }
+    }
+    return null;
+  }
+
+  public static async getUserByIdOrEmail(identifier: string): Promise<UserProfile | null> {
+    if (!identifier) return null;
+    const direct = store.users.get(identifier);
+    if (direct) return direct;
+    for (const user of store.users.values()) {
+      if (user.id === identifier || user.email.toLowerCase() === identifier.toLowerCase()) {
+        return user;
+      }
+    }
+    return null;
+  }
+
+  public static async verifyUserPassword(
+    email: string,
+    passwordAttempt: string
+  ): Promise<{ valid: boolean; user: UserProfile | null; error?: string }> {
+    const user = await this.getUserByEmail(email);
+    if (!user) {
+      return { valid: false, user: null, error: 'No account found with this email address.' };
+    }
+
+    if (!user.password) {
+      return {
+        valid: false,
+        user: null,
+        error: 'This account was signed up via Google. Please use Google Sign-In.',
+      };
+    }
+
+    if (user.password !== passwordAttempt) {
+      return { valid: false, user: null, error: 'Incorrect password. Please verify your credentials.' };
+    }
+
+    return { valid: true, user };
   }
 
   public static async getUserByEmail(email: string): Promise<UserProfile | null> {
+    if (!email) return null;
     for (const user of store.users.values()) {
       if (user.email.toLowerCase() === email.toLowerCase()) {
         return user;
@@ -74,23 +121,37 @@ export class OmniMailRepository {
   }
 
   public static async updateUserProfile(userId: string, data: Partial<UserProfile>): Promise<UserProfile | null> {
-    const user = store.users.get(userId);
+    const user = await this.getCurrentUser(userId);
     if (!user) return null;
     const updated = { ...user, ...data, updated_at: new Date().toISOString() };
-    store.users.set(userId, updated);
+    store.users.set(user.id, updated);
     return updated;
   }
 
-  public static async createUser(name: string, email: string, role: 'user' | 'admin' = 'user'): Promise<UserProfile> {
+  public static async createUser(
+    name: string,
+    email: string,
+    role: 'user' | 'admin' = 'user',
+    password?: string,
+    customId?: string
+  ): Promise<UserProfile> {
     const existing = await this.getUserByEmail(email);
-    if (existing) return existing;
+    if (existing) {
+      if (password && !existing.password) {
+        existing.password = password;
+        store.users.set(existing.id, existing);
+      }
+      return existing;
+    }
 
-    const id = `user-${Date.now()}`;
+    const id = customId || `user-${Date.now()}`;
+    const cleanRole = email.toLowerCase() === 'admin@omnibey.com' ? 'admin' : role;
     const newUser: UserProfile = {
       id,
       name,
       email,
-      role: email === 'admin@omnibey.com' ? 'admin' : role,
+      role: cleanRole,
+      password: password || undefined,
       credits: 15, // 15 free trial credits
       account_status: 'active',
       created_at: new Date().toISOString(),
@@ -110,6 +171,32 @@ export class OmniMailRepository {
       description: 'Welcome bonus trial credits',
       created_at: new Date().toISOString(),
     });
+
+    // Auto-generate initial temporary mailbox for new user
+    try {
+      const cleanPrefix = (email.split('@')[0] || 'box').replace(/[^a-z0-9]/gi, '').toLowerCase();
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+      const emailPrefix = `${cleanPrefix.slice(0, 8)}_${randomSuffix}`;
+      const emailAddress = `${emailPrefix}@omnibey.com`;
+      const emailId = `em-${Date.now()}-${randomSuffix}`;
+      const newEmail: EmailAddress = {
+        id: emailId,
+        user_id: id,
+        email_address: emailAddress,
+        prefix: emailPrefix,
+        domain: 'omnibey.com',
+        created_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        status: 'active',
+        usage_count: 0,
+        message_count: 0,
+        otp_count: 0,
+        user_service_tag: 'Default Mailbox',
+      };
+      store.emails.set(emailId, newEmail);
+    } catch (e) {
+      console.warn('Initial mailbox generation notice:', e);
+    }
 
     TelegramService.notifyNewUser(email, newUser.role).catch(() => {});
     return newUser;

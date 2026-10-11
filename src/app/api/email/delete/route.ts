@@ -9,7 +9,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'emailAddressId is required' }, { status: 400 });
     }
 
-    const success = await OmniMailRepository.deleteEmailAddress(emailAddressId, userId || 'user-demo-1');
+    const cookieHeader = request.headers.get('cookie') || '';
+    const match = cookieHeader.match(/omnimail_session=([^;]+)/);
+    const sessionUserId = match ? decodeURIComponent(match[1].trim()) : null;
+
+    const effectiveUserId = userId || sessionUserId || 'user-demo-1';
+    const success = await OmniMailRepository.deleteEmailAddress(emailAddressId, effectiveUserId);
 
     if (!success) {
       return NextResponse.json({ success: false, error: 'Could not delete email address' }, { status: 404 });

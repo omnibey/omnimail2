@@ -67,9 +67,8 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
       }
 
       // Successful login
-      router.push(data.redirectTo || '/dashboard');
-      router.refresh();
       onClose();
+      window.location.href = data.redirectTo || '/dashboard';
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Google authentication failed');
     } finally {

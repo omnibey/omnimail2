@@ -4,7 +4,11 @@ import { OmniMailRepository } from '@/lib/store/repository';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const emailAddressId = searchParams.get('emailAddressId');
-  const userId = searchParams.get('userId') || 'user-demo-1';
+
+  const cookieHeader = request.headers.get('cookie') || '';
+  const match = cookieHeader.match(/omnimail_session=([^;]+)/);
+  const sessionUserId = match ? decodeURIComponent(match[1].trim()) : null;
+  const userId = searchParams.get('userId') || sessionUserId || 'user-demo-1';
 
   if (emailAddressId) {
     const messages = await OmniMailRepository.getMessagesByEmail(emailAddressId);

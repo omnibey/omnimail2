@@ -26,7 +26,7 @@ export default function EmailsPage() {
   const fetchEmails = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/email/generate?userId=user-demo-1');
+      const res = await fetch('/api/email/generate');
       const data = await res.json();
       if (data.emails) setEmails(data.emails);
     } catch (err) {
@@ -55,7 +55,6 @@ export default function EmailsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: 'user-demo-1',
           customPrefix: customPrefix.trim() || undefined,
           userServiceTag: customTag.trim() || undefined,
           expiresInMinutes: 60,
@@ -107,7 +106,7 @@ export default function EmailsPage() {
       await fetch('/api/email/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emailAddressId: emailId, userId: 'user-demo-1' }),
+        body: JSON.stringify({ emailAddressId: emailId }),
       });
       setEmails(emails.filter((e) => e.id !== emailId));
       setMessageToast('Temporary mailbox permanently deleted.');

@@ -15,8 +15,8 @@ export default function HistoryPage() {
   const loadData = () => {
     setLoading(true);
     Promise.all([
-      fetch('/api/email/generate?userId=user-demo-1').then((r) => r.json()),
-      fetch('/api/inbox?userId=user-demo-1').then((r) => r.json()),
+      fetch('/api/email/generate').then((r) => r.json()),
+      fetch('/api/inbox').then((r) => r.json()),
     ])
       .then(([emailData, msgData]) => {
         if (emailData.emails) setEmails(emailData.emails);
