@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { OmniMailRepository } from '@/lib/store/repository';
 import { createClient } from '@/lib/supabase/server';
+import { parseUserAgentAndIp } from '@/lib/device-parser';
 
 export async function POST(request: Request) {
   try {
+    const deviceInfo = parseUserAgentAndIp(request);
     const { name, email, password, confirmPassword, acceptTerms, returnTo } = await request.json();
 
     if (!name || !email || !password) {
@@ -85,6 +87,15 @@ export async function POST(request: Request) {
               role: role,
               credits: 15,
               account_status: 'active',
+              registration_device: deviceInfo.device_type,
+              registration_browser: deviceInfo.browser,
+              registration_os: deviceInfo.os,
+              registration_ip: deviceInfo.ip_address,
+              last_login_device: deviceInfo.device_type,
+              last_login_browser: deviceInfo.browser,
+              last_login_os: deviceInfo.os,
+              last_login_ip: deviceInfo.ip_address,
+              last_login_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             },
             { onConflict: 'id' }
@@ -105,6 +116,19 @@ export async function POST(request: Request) {
       password,
       supabaseUserId || undefined
     );
+
+    // Save device info on local record
+    await OmniMailRepository.updateUserProfile(user.id, {
+      registration_device: deviceInfo.device_type,
+      registration_browser: deviceInfo.browser,
+      registration_os: deviceInfo.os,
+      registration_ip: deviceInfo.ip_address,
+      last_login_device: deviceInfo.device_type,
+      last_login_browser: deviceInfo.browser,
+      last_login_os: deviceInfo.os,
+      last_login_ip: deviceInfo.ip_address,
+      last_login_at: new Date().toISOString(),
+    });
 
     // Determine target redirect route (never redirect to root or auth routes)
     let targetRoute = user.role === 'admin' ? '/admin' : '/dashboard';

@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { OmniMailRepository } from '@/lib/store/repository';
 import { createClient } from '@/lib/supabase/server';
+import { parseUserAgentAndIp } from '@/lib/device-parser';
 
 export async function POST(request: Request) {
   try {
+    const deviceInfo = parseUserAgentAndIp(request);
     const { email, password } = await request.json();
 
     if (!email || !password) {
@@ -51,6 +53,11 @@ export async function POST(request: Request) {
         authenticatedUser = {
           ...repoUser,
           id: sbUser.id,
+          last_login_device: deviceInfo.device_type,
+          last_login_browser: deviceInfo.browser,
+          last_login_os: deviceInfo.os,
+          last_login_ip: deviceInfo.ip_address,
+          last_login_at: new Date().toISOString(),
         };
 
         // Sync with public.profiles table in Supabase
@@ -62,6 +69,11 @@ export async function POST(request: Request) {
               email: cleanEmail,
               role: role,
               account_status: 'active',
+              last_login_device: deviceInfo.device_type,
+              last_login_browser: deviceInfo.browser,
+              last_login_os: deviceInfo.os,
+              last_login_ip: deviceInfo.ip_address,
+              last_login_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             },
             { onConflict: 'id' }
@@ -78,6 +90,13 @@ export async function POST(request: Request) {
       if (localVerification.valid && localVerification.user) {
         authSource = 'local';
         authenticatedUser = localVerification.user;
+        await OmniMailRepository.updateUserProfile(authenticatedUser.id, {
+          last_login_device: deviceInfo.device_type,
+          last_login_browser: deviceInfo.browser,
+          last_login_os: deviceInfo.os,
+          last_login_ip: deviceInfo.ip_address,
+          last_login_at: new Date().toISOString(),
+        });
       } else {
         // Authentication strictly FAILED - return 401 unauthorized
         const failureReason =

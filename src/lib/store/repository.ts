@@ -1,7 +1,7 @@
 import { 
   UserProfile, EmailAddress, Message, CreditPackage, 
   CreditTransaction, Payment, AuditLog, CompatibilityItem, 
-  PaymentSubmissionInput 
+  PaymentSubmissionInput, AdminUserListItem, AdminUserDetailResponse, AccountStatus 
 } from '@/types';
 import { 
   INITIAL_PACKAGES, INITIAL_USERS, INITIAL_EMAILS, 
@@ -10,6 +10,7 @@ import {
 } from './mockStore';
 import { TelegramService } from '@/services/telegram/TelegramService';
 import { OTPService } from '@/services/otp/OTPService';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 // In-memory persistent state during server runtime
 class MemoryStore {
@@ -118,6 +119,289 @@ export class OmniMailRepository {
 
   public static async getAllUsers(): Promise<UserProfile[]> {
     return Array.from(store.users.values());
+  }
+
+  public static async getAdminUsersOverview(options?: {
+    search?: string;
+    status?: string;
+    role?: string;
+    packageFilter?: string;
+  }): Promise<{
+    users: AdminUserListItem[];
+    total: number;
+    metrics: {
+      total_users: number;
+      active_users: number;
+      suspended_users: number;
+      pending_approvals_count: number;
+      total_credits: number;
+    };
+  }> {
+    // 1. Try to sync real users from Supabase if configured
+    try {
+      const supabase = createAdminClient();
+      const { data: sbProfiles, error } = await supabase.from('profiles').select('*');
+      if (!error && sbProfiles && sbProfiles.length > 0) {
+        sbProfiles.forEach((sbUser: Record<string, unknown>) => {
+          const uId = String(sbUser.id);
+          const email = String(sbUser.email || '');
+          const existing = store.users.get(uId);
+          if (!existing) {
+            store.users.set(uId, {
+              id: uId,
+              name: String(sbUser.name || email.split('@')[0] || 'User'),
+              email: email,
+              phone: String(sbUser.phone || ''),
+              role: (sbUser.role === 'admin' ? 'admin' : 'user'),
+              credits: typeof sbUser.credits === 'number' ? sbUser.credits : 15,
+              account_status: sbUser.account_status === 'suspended' ? 'suspended' : 'active',
+              registration_device: String(sbUser.registration_device || 'Desktop'),
+              registration_browser: String(sbUser.registration_browser || 'Chrome 122'),
+              registration_os: String(sbUser.registration_os || 'Windows 11'),
+              registration_ip: String(sbUser.registration_ip || '127.0.0.1'),
+              last_login_device: String(sbUser.last_login_device || 'Desktop'),
+              last_login_browser: String(sbUser.last_login_browser || 'Chrome 122'),
+              last_login_os: String(sbUser.last_login_os || 'Windows 11'),
+              last_login_ip: String(sbUser.last_login_ip || '127.0.0.1'),
+              last_login_at: String(sbUser.last_login_at || sbUser.updated_at || new Date().toISOString()),
+              created_at: String(sbUser.created_at || new Date().toISOString()),
+              updated_at: String(sbUser.updated_at || new Date().toISOString()),
+            });
+          } else {
+            if (typeof sbUser.credits === 'number') existing.credits = sbUser.credits;
+            if (sbUser.account_status) existing.account_status = sbUser.account_status === 'suspended' ? 'suspended' : 'active';
+            if (sbUser.name) existing.name = String(sbUser.name);
+          }
+        });
+      }
+    } catch {}
+
+    // Ensure demo mock records are present in store
+    INITIAL_USERS.forEach((iu) => {
+      if (!store.users.has(iu.id)) {
+        store.users.set(iu.id, { ...iu });
+      }
+    });
+    INITIAL_EMAILS.forEach((ie) => {
+      if (!store.emails.has(ie.id)) {
+        store.emails.set(ie.id, { ...ie });
+      }
+    });
+    INITIAL_PAYMENTS.forEach((ip) => {
+      if (!store.payments.has(ip.id)) {
+        store.payments.set(ip.id, { ...ip });
+      }
+    });
+
+    const allUsers = Array.from(store.users.values());
+
+    const userList: AdminUserListItem[] = allUsers.map((user) => {
+      const deviceInfo = {
+        device_type: (user.registration_device === 'Mobile' ? 'Mobile' : user.registration_device === 'Tablet' ? 'Tablet' : 'Desktop') as 'Desktop' | 'Mobile' | 'Tablet',
+        os: user.last_login_os || user.registration_os || 'Windows 11',
+        browser: user.last_login_browser || user.registration_browser || 'Chrome 122',
+        ip_address: user.last_login_ip || user.registration_ip || '103.114.98.24',
+        last_active: user.last_login_at || user.updated_at || user.created_at,
+      };
+
+      const userPayments = Array.from(store.payments.values())
+        .filter((p) => p.user_id === user.id)
+        .sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime());
+
+      const pendingPayment = userPayments.find((p) => p.status === 'pending');
+      const approvedPayments = userPayments.filter((p) => p.status === 'approved');
+      const latestApproved = approvedPayments[0];
+      const totalSpent = approvedPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+      const userEmails = Array.from(store.emails.values())
+        .filter((e) => e.user_id === user.id && e.status !== 'deleted')
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      const activeEmails = userEmails.filter((e) => e.status === 'active');
+      const expiredEmails = userEmails.filter((e) => e.status === 'expired');
+      const totalMessages = userEmails.reduce((sum, e) => sum + (e.message_count || 0), 0);
+      const totalOtps = userEmails.reduce((sum, e) => sum + (e.otp_count || 0), 0);
+      const latestEmail = userEmails.length > 0 ? userEmails[0].email_address : undefined;
+
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        credits: user.credits,
+        account_status: user.account_status,
+        avatar_url: user.avatar_url,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+        device_info: deviceInfo,
+        packages: {
+          active_package: latestApproved
+            ? {
+                id: latestApproved.package_id,
+                name: latestApproved.package_name || 'Active Package',
+                credits: latestApproved.amount,
+                price: latestApproved.amount,
+                currency: latestApproved.currency,
+                purchased_at: latestApproved.submitted_at,
+              }
+            : undefined,
+          has_pending_payment: Boolean(pendingPayment),
+          pending_payment: pendingPayment
+            ? {
+                id: pendingPayment.id,
+                payment_ref: pendingPayment.payment_ref,
+                package_name: pendingPayment.package_name || 'Credit Package',
+                amount: pendingPayment.amount,
+                currency: pendingPayment.currency,
+                payment_method: pendingPayment.payment_method,
+                sender_identifier: pendingPayment.sender_identifier,
+                transaction_id: pendingPayment.transaction_id,
+                submitted_at: pendingPayment.submitted_at,
+              }
+            : undefined,
+          total_spent: totalSpent,
+          total_purchases_count: approvedPayments.length,
+        },
+        email_stats: {
+          total_emails_created: userEmails.length,
+          active_emails_count: activeEmails.length,
+          expired_emails_count: expiredEmails.length,
+          total_messages_received: totalMessages,
+          total_otps_received: totalOtps,
+          latest_email: latestEmail,
+        },
+      };
+    });
+
+    const metrics = {
+      total_users: userList.length,
+      active_users: userList.filter((u) => u.account_status === 'active').length,
+      suspended_users: userList.filter((u) => u.account_status === 'suspended').length,
+      pending_approvals_count: userList.filter((u) => u.packages.has_pending_payment).length,
+      total_credits: userList.reduce((sum, u) => sum + (u.credits || 0), 0),
+    };
+
+    let filtered = [...userList];
+
+    if (options?.search) {
+      const q = options.search.toLowerCase().trim();
+      filtered = filtered.filter(
+        (u) =>
+          u.name.toLowerCase().includes(q) ||
+          u.email.toLowerCase().includes(q) ||
+          (u.phone && u.phone.includes(q)) ||
+          u.device_info.ip_address.includes(q) ||
+          u.device_info.os.toLowerCase().includes(q) ||
+          u.device_info.browser.toLowerCase().includes(q)
+      );
+    }
+
+    if (options?.status && options.status !== 'all') {
+      filtered = filtered.filter((u) => u.account_status === options.status);
+    }
+
+    if (options?.role && options.role !== 'all') {
+      filtered = filtered.filter((u) => u.role === options.role);
+    }
+
+    if (options?.packageFilter && options.packageFilter !== 'all') {
+      if (options.packageFilter === 'pending') {
+        filtered = filtered.filter((u) => u.packages.has_pending_payment);
+      } else if (options.packageFilter === 'paid') {
+        filtered = filtered.filter((u) => Boolean(u.packages.active_package));
+      } else if (options.packageFilter === 'free') {
+        filtered = filtered.filter((u) => !u.packages.active_package && !u.packages.has_pending_payment);
+      }
+    }
+
+    filtered.sort((a, b) => {
+      if (a.packages.has_pending_payment && !b.packages.has_pending_payment) return -1;
+      if (!a.packages.has_pending_payment && b.packages.has_pending_payment) return 1;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+    return {
+      users: filtered,
+      total: filtered.length,
+      metrics,
+    };
+  }
+
+  public static async getAdminUserDetail(userId: string): Promise<AdminUserDetailResponse | null> {
+    const overview = await this.getAdminUsersOverview();
+    const userSummary = overview.users.find((u) => u.id === userId);
+    if (!userSummary) return null;
+
+    const emailsList = await this.getEmailAddressesByUser(userId);
+    const paymentsList = await this.getPaymentsByUser(userId);
+    const creditHistory = await this.getTransactionsByUser(userId);
+
+    return {
+      ...userSummary,
+      emails_list: emailsList,
+      payments_list: paymentsList,
+      credit_history: creditHistory,
+    };
+  }
+
+  public static async updateUserStatus(
+    userId: string,
+    newStatus: AccountStatus,
+    adminId: string = 'user-admin-1'
+  ): Promise<{ success: boolean; user: UserProfile | null }> {
+    const user = store.users.get(userId);
+    if (!user) throw new Error('User not found');
+
+    const prevStatus = user.account_status;
+    user.account_status = newStatus;
+    user.updated_at = new Date().toISOString();
+    store.users.set(userId, user);
+
+    try {
+      const supabase = createAdminClient();
+      await supabase.from('profiles').update({
+        account_status: newStatus,
+        updated_at: new Date().toISOString(),
+      }).eq('id', userId);
+    } catch {}
+
+    store.auditLogs.unshift({
+      id: `audit-${Date.now()}`,
+      admin_id: adminId,
+      action: newStatus === 'active' ? 'user_activated' : 'user_suspended',
+      target_type: 'user',
+      target_id: userId,
+      details: { previousStatus: prevStatus, newStatus, userEmail: user.email },
+      created_at: new Date().toISOString(),
+    });
+
+    return { success: true, user };
+  }
+
+  public static async deleteUser(userId: string, adminId: string = 'user-admin-1'): Promise<boolean> {
+    const user = store.users.get(userId);
+    if (!user) return false;
+    if (user.role === 'admin') throw new Error('Cannot delete an administrator account');
+
+    store.users.delete(userId);
+
+    try {
+      const supabase = createAdminClient();
+      await supabase.from('profiles').delete().eq('id', userId);
+    } catch {}
+
+    store.auditLogs.unshift({
+      id: `audit-${Date.now()}`,
+      admin_id: adminId,
+      action: 'user_deleted',
+      target_type: 'user',
+      target_id: userId,
+      details: { deletedEmail: user.email, deletedName: user.name },
+      created_at: new Date().toISOString(),
+    });
+
+    return true;
   }
 
   public static async updateUserProfile(userId: string, data: Partial<UserProfile>): Promise<UserProfile | null> {

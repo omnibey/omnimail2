@@ -16,6 +16,15 @@ export interface UserProfile {
   google_account_email?: string;
   avatar_url?: string;
   password?: string;
+  registration_device?: string;
+  registration_browser?: string;
+  registration_os?: string;
+  registration_ip?: string;
+  last_login_device?: string;
+  last_login_browser?: string;
+  last_login_os?: string;
+  last_login_ip?: string;
+  last_login_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -208,3 +217,75 @@ export interface SystemPaymentDestination {
   wallet?: string;
   instructions: string;
 }
+
+export interface AdminUserListItem {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: UserRole;
+  credits: number;
+  account_status: AccountStatus;
+  avatar_url?: string;
+  created_at: string;
+  updated_at: string;
+  device_info: {
+    device_type: 'Desktop' | 'Mobile' | 'Tablet';
+    os: string;
+    browser: string;
+    ip_address: string;
+    last_active: string;
+  };
+  packages: {
+    active_package?: {
+      id: string;
+      name: string;
+      credits: number;
+      price: number;
+      currency: string;
+      purchased_at: string;
+    };
+    has_pending_payment: boolean;
+    pending_payment?: {
+      id: string;
+      payment_ref: string;
+      package_name: string;
+      amount: number;
+      currency: string;
+      payment_method: string;
+      sender_identifier: string;
+      transaction_id?: string;
+      submitted_at: string;
+    };
+    total_spent: number;
+    total_purchases_count: number;
+  };
+  email_stats: {
+    total_emails_created: number;
+    active_emails_count: number;
+    expired_emails_count: number;
+    total_messages_received: number;
+    total_otps_received: number;
+    latest_email?: string;
+  };
+}
+
+export interface AdminUserDetailResponse extends AdminUserListItem {
+  emails_list: EmailAddress[];
+  payments_list: Payment[];
+  credit_history: CreditTransaction[];
+}
+
+export interface AdminUsersResponse {
+  success: boolean;
+  users: AdminUserListItem[];
+  total: number;
+  metrics: {
+    total_users: number;
+    active_users: number;
+    suspended_users: number;
+    pending_approvals_count: number;
+    total_credits: number;
+  };
+}
+

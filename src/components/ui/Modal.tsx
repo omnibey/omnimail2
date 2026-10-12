@@ -9,7 +9,7 @@ export interface ModalProps {
   title?: string;
   description?: string;
   children: React.ReactNode;
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl';
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl';
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -41,19 +41,23 @@ export const Modal: React.FC<ModalProps> = ({
     md: 'max-w-md',
     lg: 'max-w-lg',
     xl: 'max-w-2xl',
+    '2xl': 'max-w-3xl',
+    '3xl': 'max-w-4xl',
+    '4xl': 'max-w-5xl',
+    '5xl': 'max-w-6xl',
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity"
+        className="fixed inset-0 bg-black/70 backdrop-blur-md transition-opacity"
         onClick={onClose}
       />
 
       {/* Modal Dialog */}
       <div
-        className={`relative w-full ${maxWidths[maxWidth]} rounded-[20px] bg-[var(--bg-1)] border border-[var(--line)] shadow-[var(--shadow)] p-6 z-10 animate-slide-up text-[var(--t0)]`}
+        className={`relative w-full ${maxWidths[maxWidth]} max-h-[92vh] flex flex-col rounded-[22px] bg-[var(--bg-1)] border border-[var(--line)] shadow-[var(--shadow)] p-5 sm:p-6 z-10 animate-slide-up text-[var(--t0)]`}
       >
         <div className="flex items-start justify-between pb-4 border-b border-[var(--line)]">
           <div>
@@ -77,7 +81,7 @@ export const Modal: React.FC<ModalProps> = ({
           </button>
         </div>
 
-        <div className="mt-4">{children}</div>
+        <div className="mt-4 flex-1 overflow-y-auto pr-1">{children}</div>
       </div>
     </div>
   );
