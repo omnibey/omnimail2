@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { Mail, Menu, X, ArrowRight, LayoutDashboard, LogOut, User } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Mail, Menu, X, ArrowRight, LayoutDashboard, LogOut } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { Button } from './ui/Button';
 import { ShimmerButton } from './magicui/shimmer-button';
@@ -16,18 +16,16 @@ export const Navbar: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<'user' | 'admin'>('user');
   const pathname = usePathname();
-  const router = useRouter();
 
   useEffect(() => {
     // Check authentication status from cookies and Supabase
     const checkAuth = async () => {
-      const sessionCookie = document.cookie.split('; ').find((row) => row.startsWith('omnimail_session='))?.split('=')[1];
-      const hasCookieSession = Boolean(sessionCookie && sessionCookie.trim().length > 0);
+      const hasCookieSession = document.cookie.split('; ').some((row) => row.startsWith('omnimail_session='));
       const roleCookie = document.cookie.split('; ').find((row) => row.startsWith('omnimail_role='))?.split('=')[1];
 
       if (hasCookieSession) {
         setIsLoggedIn(true);
-        setUserRole(roleCookie === 'admin' ? 'admin' : 'user');
+        if (roleCookie === 'admin') setUserRole('admin');
         return;
       }
 

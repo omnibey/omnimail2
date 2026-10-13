@@ -33,7 +33,6 @@ function formatCountdown(expiresAt: string, now: number): { formatted: string; i
 
 export const QuickEmailGenerator: React.FC<QuickEmailGeneratorProps> = ({
   initialEmail,
-  userId = 'user-demo-1',
   onEmailChanged,
   onMessageReceived,
 }) => {
@@ -84,7 +83,6 @@ export const QuickEmailGenerator: React.FC<QuickEmailGeneratorProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId,
           expiresInMinutes: 60,
         }),
       });

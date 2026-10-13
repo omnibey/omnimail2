@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
@@ -26,9 +26,11 @@ export const DashboardSidebar: React.FC<SidebarProps> = ({
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Close mobile drawer on route change
-  useEffect(() => {
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
     setMobileOpen(false);
-  }, [pathname]);
+  }
 
   const coreLinks = [
     { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },

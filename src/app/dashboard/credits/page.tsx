@@ -51,7 +51,29 @@ export default function CreditsPage() {
   };
 
   useEffect(() => {
-    loadData();
+    let ignore = false;
+    async function init() {
+      try {
+        const [pkgRes, histRes] = await Promise.all([
+          fetch('/api/payments/packages').then((r) => r.json()),
+          fetch('/api/payments/history').then((r) => r.json()),
+        ]);
+        if (!ignore) {
+          if (pkgRes.packages) setPackages(pkgRes.packages);
+          if (pkgRes.destinations) setDestinations(pkgRes.destinations);
+          if (histRes.transactions) setTransactions(histRes.transactions);
+          if (histRes.credits !== undefined) setCurrentCredits(histRes.credits);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Failed to load credit data:', err);
+        if (!ignore) setLoading(false);
+      }
+    }
+    init();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const openPaymentModal = (pkg: CreditPackage) => {

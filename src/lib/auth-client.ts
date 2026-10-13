@@ -42,10 +42,10 @@ export async function clientSignOut(options?: { redirectTo?: string; showToast?:
 
     // 5. Hard redirect to flush client caches & auth state
     setTimeout(() => {
-      window.location.href = redirectTo;
+      window.location.replace(redirectTo);
     }, 250);
   } catch (err) {
     console.error('Error signing out:', err);
-    window.location.href = redirectTo;
+    window.location.replace(redirectTo);
   }
 }

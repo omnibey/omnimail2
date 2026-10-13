@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import type { AnimationItem } from 'lottie-web';
 import Link from 'next/link';
 import { Home, LayoutDashboard, ArrowLeft, RefreshCw } from 'lucide-react';
 import { GridPattern } from '@/components/magicui/grid-pattern';
@@ -13,7 +14,7 @@ export default function NotFoundPage() {
   const [animLoaded, setAnimLoaded] = useState(false);
 
   useEffect(() => {
-    let animInstance: any = null;
+    let animInstance: AnimationItem | null = null;
     let isCancelled = false;
 
     async function initCatLottie() {

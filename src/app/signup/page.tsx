@@ -9,7 +9,7 @@ export default function SignupPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-[var(--bg-0)] flex items-center justify-center">
-          <LottieLoader size="md" text="Loading registration..." />
+          <LottieLoader size="md" text="Loading signup..." />
         </div>
       }
     >

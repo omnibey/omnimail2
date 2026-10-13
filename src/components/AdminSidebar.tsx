@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
@@ -17,9 +17,12 @@ export const AdminSidebar: React.FC = () => {
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Close mobile drawer on route change
-  useEffect(() => {
+  // Close mobile drawer on route change
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
     setMobileOpen(false);
-  }, [pathname]);
+  }
 
   const dashboardLinks = [
     { label: 'Analytics Dashboard', href: '/admin', icon: BarChart3, badge: 'Live' },

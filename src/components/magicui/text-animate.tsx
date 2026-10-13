@@ -48,9 +48,9 @@ export function TextAnimate({
     const segmentDelay = delay + index * 0.05;
     const isVisible = isInView;
 
-    let baseTransform = 'translateY(0) scale(1)';
+    const baseTransform = 'translateY(0) scale(1)';
     let hiddenTransform = 'translateY(0) scale(1)';
-    let filter = 'blur(0px)';
+    const filter = 'blur(0px)';
     let hiddenFilter = 'blur(0px)';
 
     if (animation === 'blurIn') {

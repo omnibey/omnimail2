@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   CreditCard, CheckCircle2, XCircle, Eye, 
-  Trash2, ShieldCheck, AlertCircle, Sparkles, Filter, RefreshCw 
+  Sparkles 
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -39,7 +39,24 @@ export default function AdminPaymentsPage() {
   };
 
   useEffect(() => {
-    fetchPayments();
+    let ignore = false;
+    async function init() {
+      try {
+        const res = await fetch('/api/admin/metrics');
+        const data = await res.json();
+        if (!ignore) {
+          if (data.recentPayments) setPayments(data.recentPayments);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Failed to load admin payments:', err);
+        if (!ignore) setLoading(false);
+      }
+    }
+    init();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const handleApprove = async (paymentId: string) => {
@@ -50,8 +67,6 @@ export default function AdminPaymentsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymentId,
-          adminId: 'user-admin-1',
-          adminEmail: 'admin@omnibey.com',
         }),
       });
 
@@ -86,9 +101,7 @@ export default function AdminPaymentsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymentId: selectedPayment.id,
-          adminId: 'user-admin-1',
           reason: rejectionReason,
-          adminEmail: 'admin@omnibey.com',
         }),
       });
 

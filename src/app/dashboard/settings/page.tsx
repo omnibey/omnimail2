@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Settings, Bell, Clock, Shield, Check } from 'lucide-react';
+import { Settings, Bell, Clock, Check } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 

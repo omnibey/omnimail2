@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -21,7 +21,6 @@ import { GoogleAuthModal } from '@/components/GoogleAuthModal';
 import { LottieLoader } from '@/components/ui/LottieLoader';
 import { BorderBeam } from '@/components/magicui/border-beam';
 import { fireRealisticConfetti } from '@/components/magicui/confetti';
-import { GridPattern } from '@/components/magicui/grid-pattern';
 import { GlowingGrid } from '@/components/magicui/glowing-grid';
 import { ShimmerButton } from '@/components/magicui/shimmer-button';
 import { toast } from '@/components/ui/toast';
@@ -56,21 +55,53 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
       : decodeURIComponent(errorParam.replace(/\+/g, ' '))
     : null;
 
+  // Read stored credentials once on initial mount
+  const getStoredData = () => {
+    if (typeof window === 'undefined') {
+      return { email: '', password: '', hashError: null };
+    }
+    let email = '';
+    let password = '';
+    let hashError: string | null = null;
+    try {
+      email = sessionStorage.getItem('omnimail_registered_email') || '';
+      password = sessionStorage.getItem('omnimail_registered_password') || '';
+    } catch {}
+    try {
+      if (window.location.hash) {
+        const hash = window.location.hash.startsWith('#')
+          ? window.location.hash.slice(1)
+          : window.location.hash;
+        const hashParams = new URLSearchParams(hash);
+        const hashDesc = hashParams.get('error_description');
+        const hashErr = hashParams.get('error');
+        if (hashDesc) hashError = decodeURIComponent(hashDesc.replace(/\+/g, ' '));
+        else if (hashErr) hashError = decodeURIComponent(hashErr.replace(/\+/g, ' '));
+      }
+    } catch {}
+    return { email, password, hashError };
+  };
+
+  const storedData = getStoredData();
+  const effectiveEmail = storedData.email || paramEmail;
+  const isAutoFillTarget = isRegisteredRedirect || Boolean(storedData.email && storedData.password);
+
   // Tab State: 'login' | 'signup'
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>(() => {
+    if (isAutoFillTarget) return 'login';
     if (tabParam === 'signup') return 'signup';
     if (tabParam === 'login') return 'login';
     return initialTab;
   });
 
   // Login form state
-  const [loginEmail, setLoginEmail] = useState(paramEmail);
-  const [loginPassword, setLoginPassword] = useState('');
+  const [loginEmail, setLoginEmail] = useState(effectiveEmail);
+  const [loginPassword, setLoginPassword] = useState(storedData.password || '');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // Signup form state
   const [signupName, setSignupName] = useState('');
-  const [signupEmail, setSignupEmail] = useState(paramEmail);
+  const [signupEmail, setSignupEmail] = useState(effectiveEmail);
   const [signupPassword, setSignupPassword] = useState('');
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
   const [showSignupPassword, setShowSignupPassword] = useState(false);
@@ -80,60 +111,16 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
   const [isLoading, setIsLoading] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [redirectMessage, setRedirectMessage] = useState('Signing in...');
-  const [errorMsg, setErrorMsg] = useState<string | null>(initialOauthError);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [hasAutoFilled, setHasAutoFilled] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(initialOauthError || storedData.hashError);
+  const [successMsg, setSuccessMsg] = useState<string | null>(() => {
+    if (isAutoFillTarget) {
+      return 'Registration complete! Your credentials are auto-filled below. Click "Sign In" to continue.';
+    }
+    return null;
+  });
+  const [hasAutoFilled, setHasAutoFilled] = useState(isAutoFillTarget);
   const [googleModalOpen, setGoogleModalOpen] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-
-  // Inspect URL hash for OAuth errors (e.g. #error=server_error&error_description=...)
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.location.hash) {
-      try {
-        const hash = window.location.hash.startsWith('#')
-          ? window.location.hash.slice(1)
-          : window.location.hash;
-        const hashParams = new URLSearchParams(hash);
-        const hashDesc = hashParams.get('error_description');
-        const hashErr = hashParams.get('error');
-        if (hashDesc) {
-          setErrorMsg(decodeURIComponent(hashDesc.replace(/\+/g, ' ')));
-        } else if (hashErr) {
-          setErrorMsg(decodeURIComponent(hashErr.replace(/\+/g, ' ')));
-        }
-      } catch (err) {
-        console.warn('Hash error parsing notice:', err);
-      }
-    }
-  }, []);
-
-  // Auto-fill registered credentials if present in sessionStorage or query
-  useEffect(() => {
-    try {
-      const storedEmail = sessionStorage.getItem('omnimail_registered_email');
-      const storedPassword = sessionStorage.getItem('omnimail_registered_password');
-
-      const emailToUse = storedEmail || paramEmail;
-      if (emailToUse) {
-        setLoginEmail(emailToUse);
-        setSignupEmail(emailToUse);
-      }
-      if (storedPassword) {
-        setLoginPassword(storedPassword);
-      }
-
-      if (isRegisteredRedirect || (storedEmail && storedPassword)) {
-        setHasAutoFilled(true);
-        setActiveTab('login');
-        setSuccessMsg(
-          'Registration complete! Your credentials are auto-filled below. Click "Sign In" to continue.'
-        );
-        fireRealisticConfetti();
-      }
-    } catch (e) {
-      console.warn('Session reading notice:', e);
-    }
-  }, [isRegisteredRedirect, paramEmail]);
 
   // Tab Switch handler with URL shallow update
   const switchTab = (tab: 'login' | 'signup') => {
@@ -192,23 +179,13 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
       setRedirectMessage('Signing in...');
       setIsRedirecting(true);
 
-      document.cookie = `omnimail_session=${data.user.id}; path=/; max-age=604800; SameSite=Lax`;
-      document.cookie = `omnimail_role=${data.user.role}; path=/; max-age=604800; SameSite=Lax`;
+      document.cookie = `omnimail_session=${data.user.id}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `omnimail_role=${data.user.role}; path=/; max-age=86400; SameSite=Lax`;
 
-      let destination = data.redirectTo || (data.user.role === 'admin' ? '/admin' : '/dashboard');
-      if (
-        targetRoute &&
-        targetRoute !== '/' &&
-        targetRoute !== '/login' &&
-        targetRoute !== '/signup' &&
-        targetRoute.startsWith('/')
-      ) {
-        destination = targetRoute;
-      }
-
+      const destination = targetRoute !== '/dashboard' ? targetRoute : data.redirectTo || '/dashboard';
       setTimeout(() => {
-        window.location.href = destination;
-      }, 500);
+        router.push(destination);
+      }, 700);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Login failed';
       setErrorMsg(msg);
@@ -276,44 +253,30 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
 
       fireRealisticConfetti();
 
-      // Store credentials & pre-fill login tab in case of fallback
+      // Store credentials & pre-fill login tab
       try {
         sessionStorage.setItem('omnimail_registered_email', signupEmail.trim());
         sessionStorage.setItem('omnimail_registered_password', signupPassword);
         sessionStorage.setItem('omnimail_registered_name', signupName.trim());
       } catch {}
 
+      setLoginEmail(signupEmail.trim());
+      setLoginPassword(signupPassword);
+      setHasAutoFilled(true);
+
       toast.success('Account created successfully!', {
-        description: 'Setting up your temporary mailbox...',
+        description: 'Auto-filling your details for immediate sign-in...',
       });
 
-      setSuccessMsg('Account created! Opening your dashboard...');
-      setRedirectMessage('Signing in...');
-      setIsRedirecting(true);
-
-      document.cookie = `omnimail_session=${data.user.id}; path=/; max-age=604800; SameSite=Lax`;
-      document.cookie = `omnimail_role=${data.user.role}; path=/; max-age=604800; SameSite=Lax`;
-
-      let destination = data.redirectTo || (data.user.role === 'admin' ? '/admin' : '/dashboard');
-      if (
-        targetRoute &&
-        targetRoute !== '/' &&
-        targetRoute !== '/login' &&
-        targetRoute !== '/signup' &&
-        targetRoute.startsWith('/')
-      ) {
-        destination = targetRoute;
-      }
-
-      setTimeout(() => {
-        window.location.href = destination;
-      }, 600);
+      // Smoothly switch to login tab with success banner
+      setIsLoading(false);
+      setActiveTab('login');
+      setSuccessMsg('Account created! Your credentials have been auto-filled. Click "Sign In" below.');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
       setErrorMsg(msg);
       toast.error('Registration failed', { description: msg });
       setIsLoading(false);
-      setIsRedirecting(false);
     }
   };
 
@@ -325,15 +288,7 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
     setErrorMsg(null);
     try {
       const supabase = createClient();
-      const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const canonicalOrigin = origin.includes('vercel.app')
-        ? (process.env.NEXT_PUBLIC_APP_URL || 'https://mail.omnibey.com')
-        : origin;
-      const cleanNext = targetRoute && targetRoute !== '/' && targetRoute !== '/login' && targetRoute !== '/signup'
-        ? targetRoute
-        : '/dashboard';
-      const redirectUrl = `${canonicalOrigin}/api/auth/callback?next=${encodeURIComponent(cleanNext)}`;
-
+      const redirectUrl = `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(targetRoute)}`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -392,7 +347,7 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
           overlay
           size="lg"
           text={redirectMessage}
-          subtext={`Authenticated! Opening ${targetRoute && targetRoute !== '/' && targetRoute !== '/login' ? targetRoute : '/dashboard'}...`}
+          subtext={`Authenticated! Opening ${targetRoute}...`}
         />
       )}
 

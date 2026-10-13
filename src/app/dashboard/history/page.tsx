@@ -27,7 +27,27 @@ export default function HistoryPage() {
   };
 
   useEffect(() => {
-    loadData();
+    let ignore = false;
+    async function init() {
+      try {
+        const [emailData, msgData] = await Promise.all([
+          fetch('/api/email/generate').then((r) => r.json()),
+          fetch('/api/inbox').then((r) => r.json()),
+        ]);
+        if (!ignore) {
+          if (emailData.emails) setEmails(emailData.emails);
+          if (msgData.messages) setMessages(msgData.messages);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Failed to load history:', err);
+        if (!ignore) setLoading(false);
+      }
+    }
+    init();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const getObservedDomain = (sender: string) => {
