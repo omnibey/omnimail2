@@ -95,7 +95,7 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'system_settings' AND policyname = 'Authenticated users can view payment destinations') THEN
     CREATE POLICY "Authenticated users can view payment destinations"
       ON public.system_settings FOR SELECT
-      USING (key = 'payment_destinations' OR public.is_admin());
+      USING (key IN ('payment_destinations', 'dollar_rate') OR public.is_admin());
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'system_settings' AND policyname = 'Only admins can modify system settings') THEN
     CREATE POLICY "Only admins can modify system settings"

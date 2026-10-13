@@ -142,7 +142,8 @@ export async function POST(request: Request) {
       !returnTo.startsWith('//') &&
       returnTo !== '/' &&
       returnTo !== '/login' &&
-      returnTo !== '/signup'
+      returnTo !== '/signup' &&
+      returnTo !== '/register'
     ) {
       targetRoute = returnTo;
     }

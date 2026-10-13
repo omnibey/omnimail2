@@ -8,7 +8,8 @@ import {
 import { 
   INITIAL_PACKAGES, INITIAL_USERS, INITIAL_EMAILS, 
   INITIAL_MESSAGES, INITIAL_PAYMENTS, INITIAL_TRANSACTIONS, 
-  INITIAL_COMPATIBILITY, INITIAL_AUDIT_LOGS 
+  INITIAL_COMPATIBILITY, INITIAL_AUDIT_LOGS,
+  DollarRateConfig, INITIAL_DOLLAR_RATE
 } from './mockStore';
 import { TelegramService } from '@/services/telegram/TelegramService';
 import { OTPService } from '@/services/otp/OTPService';
@@ -24,6 +25,7 @@ class MemoryStore {
   public transactions: CreditTransaction[] = [];
   public auditLogs: AuditLog[] = [];
   public compatibility: CompatibilityItem[] = [];
+  public dollarRate: DollarRateConfig = { ...INITIAL_DOLLAR_RATE };
 
   constructor() {
     this.reset();
@@ -47,6 +49,7 @@ class MemoryStore {
     this.transactions = INITIAL_TRANSACTIONS.map(t => ({ ...t }));
     this.auditLogs = INITIAL_AUDIT_LOGS.map(a => ({ ...a }));
     this.compatibility = INITIAL_COMPATIBILITY.map(c => ({ ...c }));
+    this.dollarRate = { ...INITIAL_DOLLAR_RATE };
   }
 }
 
@@ -833,12 +836,67 @@ export class OmniMailRepository {
 
     store.messages.set(messageId, newMsg);
     email.message_count += 1;
-    if (detected?.code) email.otp_count += 1;
+    if (detected?.code) {
+      email.otp_count += 1;
+      // Deduct 5 credits for OTP extraction as required (1 OTP = 5 credits)
+      await this.deductCredits(
+        email.user_id,
+        5,
+        `OTP extraction charge (${detected.service || 'Verification Code'})`,
+        messageId
+      );
+    }
     email.last_message_at = newMsg.received_at;
     email.last_used_at = newMsg.received_at;
     store.emails.set(emailAddressId, email);
 
     return newMsg;
+  }
+
+  // Deduct credits with transaction record
+  public static async deductCredits(
+    userId: string,
+    amount: number,
+    description: string,
+    referenceId?: string
+  ): Promise<{ success: boolean; newBalance: number }> {
+    const user = await this.getCurrentUser(userId);
+    if (!user) return { success: false, newBalance: 0 };
+
+    const deduction = Math.min(user.credits, amount);
+    const newBalance = Math.max(0, user.credits - deduction);
+    user.credits = newBalance;
+    user.updated_at = new Date().toISOString();
+    store.users.set(user.id, user);
+
+    const db = getDb();
+    if (db) {
+      try {
+        await db.from('profiles').update({ credits: newBalance, updated_at: user.updated_at }).eq('id', user.id);
+      } catch (e) {
+        console.warn('Deduct credits db notice:', e);
+      }
+    }
+
+    const tx: CreditTransaction = {
+      id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `tx-${Date.now()}`,
+      user_id: user.id,
+      amount: -deduction,
+      transaction_type: 'usage',
+      balance_after: newBalance,
+      reference_id: referenceId,
+      reference_type: 'otp',
+      description: `${description} (-${deduction} credits)`,
+      created_at: new Date().toISOString(),
+    };
+    store.transactions.unshift(tx);
+    if (db) {
+      try {
+        await db.from('credit_transactions').insert(tx);
+      } catch {}
+    }
+
+    return { success: true, newBalance };
   }
 
   // ================= CREDIT PACKAGES & TRANSACTIONS =================
@@ -862,6 +920,24 @@ export class OmniMailRepository {
       .sort((a, b) => a.display_order - b.display_order);
   }
 
+  public static async getAllPackagesAdmin(): Promise<CreditPackage[]> {
+    const db = getDb();
+    if (db) {
+      try {
+        const { data, error } = await db
+          .from('credit_packages')
+          .select('*')
+          .order('display_order', { ascending: true });
+        if (!error && data && data.length > 0) return data as CreditPackage[];
+      } catch (err) {
+        console.warn('Repository Supabase getAllPackagesAdmin error:', err);
+      }
+    }
+
+    return Array.from(store.packages.values())
+      .sort((a, b) => a.display_order - b.display_order);
+  }
+
   public static async getPackageById(id: string): Promise<CreditPackage | null> {
     const db = getDb();
     if (db) {
@@ -873,6 +949,141 @@ export class OmniMailRepository {
       }
     }
     return store.packages.get(id) || null;
+  }
+
+  public static async createPackage(
+    pkgData: Omit<CreditPackage, 'id' | 'created_at'>
+  ): Promise<CreditPackage> {
+    const id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `pkg-${Date.now()}`;
+    const newPkg: CreditPackage = {
+      ...pkgData,
+      id,
+      created_at: new Date().toISOString(),
+    };
+
+    const db = getDb();
+    if (db) {
+      try {
+        const { data, error } = await db
+          .from('credit_packages')
+          .insert(newPkg)
+          .select()
+          .maybeSingle();
+        if (!error && data) {
+          store.packages.set(id, data as CreditPackage);
+          return data as CreditPackage;
+        }
+      } catch (e) {
+        console.warn('Create package db error:', e);
+      }
+    }
+
+    store.packages.set(id, newPkg);
+    return newPkg;
+  }
+
+  public static async updatePackage(
+    id: string,
+    updates: Partial<CreditPackage>
+  ): Promise<CreditPackage | null> {
+    const existing = store.packages.get(id);
+    const updatedPkg: CreditPackage = {
+      ...(existing || {} as CreditPackage),
+      ...updates,
+      id,
+      created_at: existing?.created_at || new Date().toISOString(),
+    };
+
+    const db = getDb();
+    if (db) {
+      try {
+        const { data, error } = await db
+          .from('credit_packages')
+          .update(updates)
+          .eq('id', id)
+          .select()
+          .maybeSingle();
+        if (!error && data) {
+          store.packages.set(id, data as CreditPackage);
+          return data as CreditPackage;
+        }
+      } catch (e) {
+        console.warn('Update package db error:', e);
+      }
+    }
+
+    store.packages.set(id, updatedPkg);
+    return updatedPkg;
+  }
+
+  public static async deletePackage(id: string): Promise<boolean> {
+    const db = getDb();
+    if (db) {
+      try {
+        const { error } = await db.from('credit_packages').delete().eq('id', id);
+        if (!error) {
+          store.packages.delete(id);
+          return true;
+        }
+      } catch (e) {
+        console.warn('Delete package db error:', e);
+      }
+    }
+
+    return store.packages.delete(id);
+  }
+
+  // ================= SYSTEM SETTINGS: DOLLAR RATE =================
+  public static async getDollarRate(): Promise<DollarRateConfig> {
+    const db = getDb();
+    if (db) {
+      try {
+        const { data, error } = await db
+          .from('system_settings')
+          .select('value')
+          .eq('key', 'dollar_rate')
+          .maybeSingle();
+        if (!error && data?.value) {
+          store.dollarRate = data.value as DollarRateConfig;
+          return data.value as DollarRateConfig;
+        }
+      } catch (e) {
+        console.warn('Get dollar rate db notice:', e);
+      }
+    }
+
+    return store.dollarRate;
+  }
+
+  public static async setDollarRate(
+    rate: number,
+    minDepositUsd: number = 5
+  ): Promise<DollarRateConfig> {
+    const newConfig: DollarRateConfig = {
+      rate: Number(rate) || 125,
+      currency: 'BDT',
+      min_deposit_usd: Number(minDepositUsd) || 5,
+      credits_per_usd: 100,
+      credits_per_otp: 5,
+      updated_at: new Date().toISOString(),
+    };
+
+    const db = getDb();
+    if (db) {
+      try {
+        await db.from('system_settings').upsert({
+          key: 'dollar_rate',
+          value: newConfig,
+          description: 'Current USD to BDT dollar rate and credit conversion pricing',
+          updated_at: new Date().toISOString(),
+        });
+      } catch (e) {
+        console.warn('Set dollar rate db error:', e);
+      }
+    }
+
+    store.dollarRate = newConfig;
+    return newConfig;
   }
 
   public static async getTransactionsByUser(userId: string): Promise<CreditTransaction[]> {
@@ -1287,6 +1498,39 @@ export class OmniMailRepository {
       }
     }
     return [...store.auditLogs];
+  }
+
+  public static async logAudit(
+    adminId: string,
+    action: string,
+    targetType: string,
+    targetId: string,
+    details?: Record<string, unknown>,
+    ipAddress?: string
+  ): Promise<AuditLog> {
+    const id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `audit-${Date.now()}`;
+    const log: AuditLog = {
+      id,
+      admin_id: adminId,
+      action,
+      target_type: targetType,
+      target_id: targetId,
+      details,
+      ip_address: ipAddress,
+      created_at: new Date().toISOString(),
+    };
+    store.auditLogs.unshift(log);
+
+    const db = getDb();
+    if (db) {
+      try {
+        await db.from('audit_logs').insert(log);
+      } catch (err) {
+        console.warn('Repository Supabase logAudit error:', err);
+      }
+    }
+
+    return log;
   }
 
   public static async getCompatibilitySummary(): Promise<CompatibilityItem[]> {

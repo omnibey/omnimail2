@@ -370,7 +370,7 @@ export const QuickEmailGenerator: React.FC<QuickEmailGeneratorProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
-              <Link href="/signup" className="flex-1 sm:flex-initial">
+              <Link href="/register" className="flex-1 sm:flex-initial">
                 <button
                   type="button"
                   className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-3 rounded-[12px] bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white font-bold text-xs shadow-md shadow-[#6366F1]/25 active:scale-95 transition-all cursor-pointer"

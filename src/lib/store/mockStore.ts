@@ -3,17 +3,35 @@ import {
   CreditTransaction, Payment, AuditLog, CompatibilityItem 
 } from '@/types';
 
+export interface DollarRateConfig {
+  rate: number; // e.g. 125 (1 USD = 125 BDT)
+  currency: string;
+  min_deposit_usd: number; // minimum 5 USD deposit
+  credits_per_usd: number; // 100 credits per USD
+  credits_per_otp: number; // 5 credits per OTP
+  updated_at: string;
+}
+
+export const INITIAL_DOLLAR_RATE: DollarRateConfig = {
+  rate: 125,
+  currency: 'BDT',
+  min_deposit_usd: 5,
+  credits_per_usd: 100,
+  credits_per_otp: 5,
+  updated_at: new Date().toISOString(),
+};
+
 export const INITIAL_PACKAGES: CreditPackage[] = [
   {
     id: 'pkg-1',
     name: 'Starter Pack',
-    price: 150,
-    currency: 'BDT',
-    credits: 100,
-    bonus: 10,
+    price: 5,
+    currency: 'USD',
+    credits: 500,
+    bonus: 50,
     status: 'active',
-    description: 'Perfect for quick verifications, personal testing, and occasional signups.',
-    features: ['110 Total Credits', 'Instant OTP detection', 'Valid for 30 days', 'Standard delivery speed'],
+    description: 'Entry package with 500 Base Credits ($1 = 100 credits) + 50 Bonus. Minimum deposit $5.',
+    features: ['550 Total Credits ($5.00 USD)', '5 Credits per OTP (~110 OTPs)', 'Instant OTP detection', 'Valid for 30 days', 'Standard delivery speed'],
     is_featured: false,
     display_order: 1,
     created_at: new Date().toISOString(),
@@ -21,13 +39,13 @@ export const INITIAL_PACKAGES: CreditPackage[] = [
   {
     id: 'pkg-2',
     name: 'Pro Tester',
-    price: 350,
-    currency: 'BDT',
-    credits: 300,
-    bonus: 50,
+    price: 10,
+    currency: 'USD',
+    credits: 1000,
+    bonus: 150,
     status: 'active',
     description: 'Our most popular choice for developers, QA engineers, and automated testing.',
-    features: ['350 Total Credits', 'Priority email intake', 'High-accuracy OTP extraction', 'Telegram notifications', 'Multi-device sync'],
+    features: ['1,150 Total Credits ($10.00 USD)', '5 Credits per OTP (~230 OTPs)', 'Priority email intake', 'High-accuracy OTP extraction', 'Multi-device sync'],
     is_featured: true,
     display_order: 2,
     created_at: new Date().toISOString(),
@@ -35,15 +53,29 @@ export const INITIAL_PACKAGES: CreditPackage[] = [
   {
     id: 'pkg-3',
     name: 'Enterprise Scale',
-    price: 800,
-    currency: 'BDT',
-    credits: 800,
-    bonus: 200,
+    price: 25,
+    currency: 'USD',
+    credits: 2500,
+    bonus: 500,
     status: 'active',
     description: 'High-throughput solution for QA agencies, growth teams, and power users.',
-    features: ['1,000 Total Credits', 'Custom catch-all routing', 'Developer API access', 'Dedicated priority queue', '24/7 Priority support'],
+    features: ['3,000 Total Credits ($25.00 USD)', '5 Credits per OTP (~600 OTPs)', 'Custom catch-all routing', 'Developer API access', 'Dedicated priority queue'],
     is_featured: false,
     display_order: 3,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'pkg-4',
+    name: 'Agency Fleet',
+    price: 50,
+    currency: 'USD',
+    credits: 5000,
+    bonus: 1500,
+    status: 'active',
+    description: 'Maximum value package with 1,500 bonus credits for heavy automation.',
+    features: ['6,500 Total Credits ($50.00 USD)', '5 Credits per OTP (~1,300 OTPs)', 'Unlimited API access', '24/7 Priority support'],
+    is_featured: false,
+    display_order: 4,
     created_at: new Date().toISOString(),
   },
 ];

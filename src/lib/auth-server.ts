@@ -104,36 +104,31 @@ export async function getAuthenticatedUser(): Promise<AuthenticatedAuthContext |
     console.warn('Supabase auth resolution notice:', err);
   }
 
-  // If no Supabase user was found:
-  // Strictly disallow any demo fallback when Demo Mode is disabled
-  if (!isDemoMode()) {
-    return null;
-  }
-
-  // Development Demo Mode fallback only when DEMO_MODE is true / active
+  // 2. Active Session Cookie fallback (for custom registered & authenticated users)
   try {
     const cookieStore = await cookies();
-    const demoSession = cookieStore.get('omnimail_session')?.value;
-    const demoRole = cookieStore.get('omnimail_role')?.value;
+    const sessionId = cookieStore.get('omnimail_session')?.value;
 
-    if (demoSession === 'user-admin-1' || demoRole === 'admin') {
-      const adminUser = await OmniMailRepository.getCurrentUser('user-admin-1');
-      if (adminUser) {
+    if (sessionId) {
+      const user = await OmniMailRepository.getCurrentUser(sessionId);
+      if (user) {
         return {
-          user: { id: adminUser.id, email: adminUser.email },
-          profile: adminUser,
-          isDemo: true,
+          user: { id: user.id, email: user.email },
+          profile: user,
+          isDemo: isDemoMode() || sessionId.startsWith('user-demo'),
         };
       }
     }
 
-    const demoUser = await OmniMailRepository.getCurrentUser('user-demo-1');
-    if (demoUser) {
-      return {
-        user: { id: demoUser.id, email: demoUser.email },
-        profile: demoUser,
-        isDemo: true,
-      };
+    if (isDemoMode()) {
+      const demoUser = await OmniMailRepository.getCurrentUser('user-demo-1');
+      if (demoUser) {
+        return {
+          user: { id: demoUser.id, email: demoUser.email },
+          profile: demoUser,
+          isDemo: true,
+        };
+      }
     }
   } catch {
     // Cookie store read error in static context

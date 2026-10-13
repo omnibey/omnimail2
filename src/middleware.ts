@@ -3,13 +3,24 @@ import { createServerClient } from '@supabase/ssr';
 import { isDemoMode } from '@/lib/demo';
 
 export async function middleware(request: NextRequest) {
-  // 1. Canonical Domain Redirection:
-  // If request hits Vercel's default/preview domain (e.g. *.vercel.app), redirect to mail.omnibey.com
+  const { pathname, searchParams } = request.nextUrl;
+
+  // 1. OAuth Code Forwarder:
+  // If Supabase/Google redirects to root (/) or auth page with ?code=, forward immediately to callback route
+  const code = searchParams.get('code');
+  if (code && (pathname === '/' || pathname === '/login' || pathname === '/register' || pathname === '/signup')) {
+    const callbackUrl = new URL('/api/auth/callback', request.url);
+    callbackUrl.search = request.nextUrl.search;
+    return NextResponse.redirect(callbackUrl);
+  }
+
+  // 2. Canonical Domain Redirection (only if CANONICAL_DOMAIN env is explicitly set):
+  const canonicalDomain = process.env.CANONICAL_DOMAIN;
   const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host || '';
-  if (host.includes('.vercel.app')) {
+  if (canonicalDomain && host && host !== canonicalDomain && !host.includes('localhost') && !host.includes('127.0.0.1')) {
     const canonicalUrl = new URL(request.url);
     canonicalUrl.protocol = 'https:';
-    canonicalUrl.host = 'mail.omnibey.com';
+    canonicalUrl.host = canonicalDomain;
     canonicalUrl.port = '';
     return NextResponse.redirect(canonicalUrl, 308);
   }
@@ -63,22 +74,23 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const { pathname } = request.nextUrl;
   const demoActive = isDemoMode();
-  const demoCookieSession = request.cookies.get('omnimail_session')?.value;
-  const demoCookieRole = request.cookies.get('omnimail_role')?.value;
+  const sessionCookie = request.cookies.get('omnimail_session')?.value;
+  const roleCookie = request.cookies.get('omnimail_role')?.value;
 
-  // A session is only valid via authenticated Supabase user or isolated Demo Mode (if enabled)
-  const hasValidSession = Boolean(supabaseUser) || (demoActive && Boolean(demoCookieSession));
+  // Session is valid if authenticated via Supabase user OR omnimail_session cookie exists
+  const hasValidSession = Boolean(supabaseUser) || Boolean(sessionCookie);
   
-  // Role MUST be derived from database profile for authenticated users. NEVER trust omnimail_role cookie.
+  // Role determination:
+  // If Supabase user exists, use profile role
+  // Otherwise if session cookie exists, check role cookie / admin id
   const effectiveRole = supabaseUser 
     ? userRole 
-    : (demoActive && (demoCookieSession === 'user-admin-1' || demoCookieRole === 'admin') ? 'admin' : 'user');
+    : (sessionCookie === 'user-admin-1' || roleCookie === 'admin' ? 'admin' : 'user');
 
   const isAdminRoute = pathname.startsWith('/admin');
   const isDashboardRoute = pathname.startsWith('/dashboard');
-  const isAuthRoute = pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password';
+  const isAuthRoute = pathname === '/login' || pathname === '/register' || pathname === '/signup' || pathname === '/forgot-password';
 
   // 1. Admin route protection: Normal users and unauthenticated guests cannot enter /admin
   if (isAdminRoute) {
@@ -111,9 +123,11 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/',
     '/dashboard/:path*',
     '/admin/:path*',
     '/login',
+    '/register',
     '/signup',
     '/forgot-password',
   ],

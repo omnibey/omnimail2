@@ -12,11 +12,12 @@ import { Modal } from '@/components/ui/Modal';
 import { PackagesGridSkeleton, TableSkeleton } from '@/components/ui/Skeleton';
 import { LottieLoader } from '@/components/ui/LottieLoader';
 import { toast } from '@/components/ui/toast';
-import { CreditPackage, CreditTransaction, PaymentMethod, SystemPaymentDestination } from '@/types';
+import { CreditPackage, CreditTransaction, PaymentMethod, SystemPaymentDestination, DollarRateConfig } from '@/types';
 
 export default function CreditsPage() {
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [destinations, setDestinations] = useState<Record<PaymentMethod, SystemPaymentDestination> | null>(null);
+  const [dollarRate, setDollarRate] = useState<DollarRateConfig | null>(null);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [currentCredits, setCurrentCredits] = useState<number>(45);
   const [loading, setLoading] = useState(true);
@@ -41,6 +42,7 @@ export default function CreditsPage() {
       ]);
       if (pkgRes.packages) setPackages(pkgRes.packages);
       if (pkgRes.destinations) setDestinations(pkgRes.destinations);
+      if (pkgRes.dollarRate) setDollarRate(pkgRes.dollarRate);
       if (histRes.transactions) setTransactions(histRes.transactions);
       if (histRes.credits !== undefined) setCurrentCredits(histRes.credits);
     } catch (err) {
@@ -61,6 +63,7 @@ export default function CreditsPage() {
         if (!ignore) {
           if (pkgRes.packages) setPackages(pkgRes.packages);
           if (pkgRes.destinations) setDestinations(pkgRes.destinations);
+          if (pkgRes.dollarRate) setDollarRate(pkgRes.dollarRate);
           if (histRes.transactions) setTransactions(histRes.transactions);
           if (histRes.credits !== undefined) setCurrentCredits(histRes.credits);
           setLoading(false);
@@ -198,64 +201,84 @@ export default function CreditsPage() {
 
       {/* Available Credit Packages */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-extrabold text-[var(--t0)]">
-            Available Top-Up Packages
-          </h2>
-          <span className="text-xs text-[var(--t2)]">Instant delivery on review</span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <div>
+            <h2 className="text-base font-extrabold text-[var(--t0)]">
+              Available Top-Up Packages
+            </h2>
+            <p className="text-xs text-[var(--t2)]">
+              $1.00 USD = 100 Credits • 1 OTP received = 5 Credits • Minimum deposit: ${dollarRate?.min_deposit_usd || 5} USD
+            </p>
+          </div>
+          <div className="text-xs font-bold text-[var(--acc)] bg-[var(--acc-soft)] px-3 py-1 rounded-full w-fit">
+            Exchange Rate: 1 USD = ৳{dollarRate?.rate || 125} BDT
+          </div>
         </div>
 
         {loading ? (
           <PackagesGridSkeleton />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {packages.map((pkg) => (
-              <Card
-                key={pkg.id}
-                className={`p-6 flex flex-col justify-between relative bg-[var(--bg-2)] border-[var(--line)] ${
-                  pkg.is_featured
-                    ? 'border-[var(--acc)] ring-2 ring-[var(--acc-soft)] shadow-md'
-                    : ''
-                }`}
-                hoverEffect
-              >
-                {pkg.is_featured && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span className="px-3 py-0.5 rounded-full text-[10px] font-extrabold bg-[var(--acc)] text-white shadow-sm shadow-[var(--acc-soft)]">
-                      POPULAR CHOICE
-                    </span>
+            {packages.map((pkg) => {
+              const currentRate = dollarRate?.rate || 125;
+              const bdtAmount = Math.round(pkg.price * currentRate);
+              const totalCredits = pkg.credits + pkg.bonus;
+              const approxOtps = Math.floor(totalCredits / 5);
+
+              return (
+                <Card
+                  key={pkg.id}
+                  className={`p-6 flex flex-col justify-between relative bg-[var(--bg-2)] border-[var(--line)] ${
+                    pkg.is_featured
+                      ? 'border-[var(--acc)] ring-2 ring-[var(--acc-soft)] shadow-md'
+                      : ''
+                  }`}
+                  hoverEffect
+                >
+                  {pkg.is_featured && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <span className="px-3 py-0.5 rounded-full text-[10px] font-extrabold bg-[var(--acc)] text-white shadow-sm shadow-[var(--acc-soft)]">
+                        POPULAR CHOICE
+                      </span>
+                    </div>
+                  )}
+
+                  <div>
+                    <h3 className="text-lg font-bold text-[var(--t0)]">
+                      {pkg.name}
+                    </h3>
+                    <p className="mt-1 text-xs text-[var(--t2)] font-medium">
+                      {pkg.description}
+                    </p>
+
+                    <div className="mt-4 flex items-baseline gap-1">
+                      <span className="text-3xl font-extrabold text-[var(--t0)] font-mono">
+                        ${pkg.price}
+                      </span>
+                      <span className="text-xs text-[var(--t2)] font-bold">USD</span>
+                    </div>
+
+                    <div className="text-xs text-[var(--t2)] font-mono mt-0.5">
+                      ≈ ৳{bdtAmount.toLocaleString()} BDT (bKash/Nagad)
+                    </div>
+
+                    <div className="mt-3 text-xs font-bold text-[var(--acc)] flex items-center justify-between bg-[var(--acc-soft)] px-2.5 py-1.5 rounded-[8px]">
+                      <div className="flex items-center gap-1.5">
+                        <Coins className="w-3.5 h-3.5" />
+                        <span>{pkg.credits} Credits + {pkg.bonus} Bonus</span>
+                      </div>
+                      <span className="text-[11px] text-[var(--t1)] font-medium">~{approxOtps} OTPs</span>
+                    </div>
+
+                    <ul className="mt-5 space-y-2 text-xs text-[var(--t1)]">
+                      {pkg.features.map((feat, i) => (
+                        <li key={i} className="flex items-center gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-[var(--ok)] shrink-0" />
+                          <span>{feat}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                )}
-
-                <div>
-                  <h3 className="text-lg font-bold text-[var(--t0)]">
-                    {pkg.name}
-                  </h3>
-                  <p className="mt-1 text-xs text-[var(--t2)] font-medium">
-                    {pkg.description}
-                  </p>
-
-                  <div className="mt-4 flex items-baseline gap-1">
-                    <span className="text-3xl font-extrabold text-[var(--t0)] font-mono">
-                      ৳{pkg.price}
-                    </span>
-                    <span className="text-xs text-[var(--t2)]">/{pkg.currency}</span>
-                  </div>
-
-                  <div className="mt-2.5 text-xs font-bold text-[var(--acc)] flex items-center gap-1.5 bg-[var(--acc-soft)] px-2.5 py-1 rounded-[8px] w-fit">
-                    <Coins className="w-3.5 h-3.5" />
-                    <span>{pkg.credits} Credits + {pkg.bonus} Bonus</span>
-                  </div>
-
-                  <ul className="mt-5 space-y-2 text-xs text-[var(--t1)]">
-                    {pkg.features.map((feat, i) => (
-                      <li key={i} className="flex items-center gap-2">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-[var(--ok)] shrink-0" />
-                        <span>{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
 
                 <div className="mt-6 pt-4 border-t border-[var(--line)]">
                   <Button
@@ -268,8 +291,9 @@ export default function CreditsPage() {
                   </Button>
                 </div>
               </Card>
-            ))}
-          </div>
+            );
+          })}
+        </div>
         )}
       </div>
 
@@ -390,40 +414,55 @@ export default function CreditsPage() {
           </div>
 
           {/* 2. Destination Instructions Box */}
-          {activeDestination && (
-            <div className="rounded-[14px] border border-[var(--line)] bg-[var(--bg-3)] p-3.5 space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-[var(--t2)] font-medium">Type: {activeDestination.type}</span>
-                <span className="font-extrabold text-[var(--acc)] font-mono">
-                  Amount: ৳{selectedPkg?.price}
-                </span>
-              </div>
-              <div className="flex items-center justify-between font-mono font-bold text-sm text-[var(--t0)] pt-0.5">
-                <span>Account: {activeDestination.account}</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(activeDestination.account);
-                    toast.success('Account number copied!', {
-                      description: activeDestination.account,
-                    });
-                  }}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-[7px] bg-[var(--acc-soft)] text-[var(--acc)] text-[11px] hover:opacity-80 transition-opacity cursor-pointer font-sans font-bold"
-                >
-                  <Copy className="w-3 h-3" />
-                  <span>Copy</span>
-                </button>
-              </div>
-              {activeDestination.wallet && (
-                <div className="text-[11px] font-mono text-[var(--t2)] break-all bg-[var(--bg-inset)] p-2 rounded-[8px] border border-[var(--line)]">
-                  {activeDestination.wallet}
+          {activeDestination && (() => {
+            const isCrypto = selectedMethod === 'binance';
+            const currentRate = dollarRate?.rate || 125;
+            const bdtAmount = Math.round((selectedPkg?.price || 0) * currentRate);
+
+            return (
+              <div className="rounded-[14px] border border-[var(--line)] bg-[var(--bg-3)] p-3.5 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[var(--t2)] font-medium">Type: {activeDestination.type}</span>
+                  <div className="text-right">
+                    <span className="font-extrabold text-[var(--acc)] font-mono text-sm block">
+                      {isCrypto 
+                        ? `$${selectedPkg?.price} USDT` 
+                        : `৳${bdtAmount.toLocaleString()} BDT`}
+                    </span>
+                    {!isCrypto && (
+                      <span className="text-[10px] text-[var(--t2)] font-mono">
+                        (${selectedPkg?.price} USD @ ৳{currentRate}/$)
+                      </span>
+                    )}
+                  </div>
                 </div>
-              )}
-              <p className="text-[11px] text-[var(--t2)] pt-1 leading-relaxed">
-                {activeDestination.instructions}
-              </p>
-            </div>
-          )}
+                <div className="flex items-center justify-between font-mono font-bold text-sm text-[var(--t0)] pt-0.5">
+                  <span>Account: {activeDestination.account}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(activeDestination.account);
+                      toast.success('Account number copied!', {
+                        description: activeDestination.account,
+                      });
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-[7px] bg-[var(--acc-soft)] text-[var(--acc)] text-[11px] hover:opacity-80 transition-opacity cursor-pointer font-sans font-bold"
+                  >
+                    <Copy className="w-3 h-3" />
+                    <span>Copy</span>
+                  </button>
+                </div>
+                {activeDestination.wallet && (
+                  <div className="text-[11px] font-mono text-[var(--t2)] break-all bg-[var(--bg-inset)] p-2 rounded-[8px] border border-[var(--line)]">
+                    {activeDestination.wallet}
+                  </div>
+                )}
+                <p className="text-[11px] text-[var(--t2)] pt-1 leading-relaxed">
+                  {activeDestination.instructions}
+                </p>
+              </div>
+            );
+          })()}
 
           {/* 3. Form Input: Sender Number REQUIRED */}
           <div>

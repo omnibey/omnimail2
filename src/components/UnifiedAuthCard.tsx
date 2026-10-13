@@ -130,7 +130,7 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
 
     try {
       const currentUrl = new URL(window.location.href);
-      currentUrl.pathname = tab === 'signup' ? '/signup' : '/login';
+      currentUrl.pathname = tab === 'signup' ? '/register' : '/login';
       currentUrl.searchParams.delete('tab');
       window.history.replaceState(null, '', currentUrl.toString());
     } catch {}
@@ -184,8 +184,8 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
 
       const destination = targetRoute !== '/dashboard' ? targetRoute : data.redirectTo || '/dashboard';
       setTimeout(() => {
-        router.push(destination);
-      }, 700);
+        window.location.href = destination;
+      }, 500);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Login failed';
       setErrorMsg(msg);

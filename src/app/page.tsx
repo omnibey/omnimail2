@@ -24,11 +24,17 @@ export default function HomePage() {
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
 
-  // Redirect to /login if OAuth returned an error directly to the home page (e.g. Supabase fallback)
+  // Handle OAuth code or errors returned directly to the home page (e.g. Supabase fallback)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       const url = new URL(window.location.href);
+      const code = url.searchParams.get('code');
+      if (code) {
+        window.location.replace(`/api/auth/callback${url.search}`);
+        return;
+      }
+
       const errorParam = url.searchParams.get('error') || '';
       const errorDesc = url.searchParams.get('error_description') || '';
       const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
@@ -135,7 +141,7 @@ export default function HomePage() {
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </Link>
-              <Link href="/signup">
+              <Link href="/register">
                 <button
                   type="button"
                   className="flex items-center gap-2 px-6 py-3.5 rounded-[13px] border border-[var(--line-2)] bg-[var(--bg-1)] hover:bg-[var(--bg-3)] text-[var(--t0)] font-bold text-sm shadow-sm hover:border-[#6366F1]/50 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
@@ -579,7 +585,7 @@ export default function HomePage() {
             Generate unlimited temporary mailboxes, extract verification codes in seconds, and keep spam away forever.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
-            <Link href="/signup">
+            <Link href="/register">
               <ShimmerButton
                 background="#ffffff"
                 shimmerColor="#7c5cff"

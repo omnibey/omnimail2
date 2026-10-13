@@ -55,7 +55,7 @@ export const Navbar: React.FC = () => {
     await clientSignOut({ redirectTo: '/' });
   };
 
-  const isAuthPage = pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password';
+  const isAuthPage = pathname === '/login' || pathname === '/register' || pathname === '/signup' || pathname === '/forgot-password';
   if (isAuthPage) return null;
 
   return (
@@ -127,7 +127,7 @@ export const Navbar: React.FC = () => {
                     Sign In
                   </Button>
                 </Link>
-                <Link href="/signup">
+                <Link href="/register">
                   <ShimmerButton
                     background="var(--acc)"
                     shimmerColor="#ffffff"
@@ -210,7 +210,7 @@ export const Navbar: React.FC = () => {
                     Sign In
                   </Button>
                 </Link>
-                <Link href="/signup" onClick={() => setMobileMenuOpen(false)} className="flex-1">
+                <Link href="/register" onClick={() => setMobileMenuOpen(false)} className="flex-1">
                   <ShimmerButton
                     background="var(--acc)"
                     shimmerColor="#ffffff"
