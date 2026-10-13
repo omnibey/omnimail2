@@ -1,21 +1,32 @@
 import { NextResponse } from 'next/server';
 import { OmniMailRepository } from '@/lib/store/repository';
+import { requireAdmin } from '@/lib/auth-server';
 
 export async function POST(request: Request) {
   try {
-    const { userId, amount, adminId, reason } = await request.json();
-
-    if (!userId || amount === undefined) {
-      return NextResponse.json({ success: false, error: 'userId and amount are required' }, { status: 400 });
+    const auth = await requireAdmin();
+    if (auth instanceof NextResponse) {
+      return auth;
     }
 
-    const effectiveAdminId = adminId || 'user-admin-1';
+    const body = await request.json().catch(() => ({}));
+    const { userId, amount, reason } = body;
+
+    if (!userId || amount === undefined || isNaN(Number(amount))) {
+      return NextResponse.json(
+        { success: false, error: 'userId and valid numerical amount are required' },
+        { status: 400 }
+      );
+    }
+
+    // Server-derived admin ID: NEVER trust client-provided adminId
+    const adminId = auth.profile.id;
     const effectiveReason = reason || 'Admin manual balance adjustment';
 
     const result = await OmniMailRepository.adjustUserCredits(
       userId,
       Number(amount),
-      effectiveAdminId,
+      adminId,
       effectiveReason
     );
 

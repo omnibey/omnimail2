@@ -289,3 +289,5 @@ export interface AdminUsersResponse {
   };
 }
 
+export type AdminUsersOverviewResponse = Omit<AdminUsersResponse, 'success'>;
+

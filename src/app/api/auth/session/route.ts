@@ -1,75 +1,40 @@
 import { NextResponse } from 'next/server';
 import { OmniMailRepository } from '@/lib/store/repository';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthenticatedUser, requireAuthenticatedUser } from '@/lib/auth-server';
+import { isDemoMode } from '@/lib/demo';
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const requestedRole = searchParams.get('role');
-
-  const cookieHeader = request.headers.get('cookie') || '';
-  const match = cookieHeader.match(/omnimail_session=([^;]+)/);
-  const sessionToken = match ? decodeURIComponent(match[1].trim()) : null;
-
-  let user = null;
-
-  // 1. Look up user by active session cookie
-  if (sessionToken) {
-    user = await OmniMailRepository.getCurrentUser(sessionToken);
+  const auth = await getAuthenticatedUser();
+  if (auth) {
+    return NextResponse.json({ user: auth.profile });
   }
 
-  // 2. Check Supabase Auth server session if available
-  if (!user) {
-    try {
-      const supabase = await createClient();
-      const {
-        data: { user: sbUser },
-      } = await supabase.auth.getUser();
-
-      if (sbUser) {
-        user =
-          (await OmniMailRepository.getCurrentUser(sbUser.id)) ||
-          (sbUser.email ? await OmniMailRepository.getUserByEmail(sbUser.email) : null);
-      }
-    } catch {}
-  }
-
-  // 3. Fallback to requested role (demo switcher testing)
-  if (!user && requestedRole) {
+  // Only allow demo role inspection in demo mode
+  if (isDemoMode()) {
+    const { searchParams } = new URL(request.url);
+    const requestedRole = searchParams.get('role');
     const targetId = requestedRole === 'admin' ? 'user-admin-1' : 'user-demo-1';
-    user = await OmniMailRepository.getCurrentUser(targetId);
+    const user = await OmniMailRepository.getCurrentUser(targetId);
+    return NextResponse.json({ user });
   }
 
-  // 4. Default demo user for development/preview if no session cookie exists
-  if (!user && !sessionToken) {
-    user = await OmniMailRepository.getCurrentUser('user-demo-1');
-  }
-
-  return NextResponse.json({ user });
+  return NextResponse.json({ user: null });
 }
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { action, userId, name, phone } = body;
+    const auth = await requireAuthenticatedUser();
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
 
-    const cookieHeader = request.headers.get('cookie') || '';
-    const match = cookieHeader.match(/omnimail_session=([^;]+)/);
-    const sessionToken = match ? decodeURIComponent(match[1].trim()) : null;
+    const body = await request.json().catch(() => ({}));
+    const { action, name, phone } = body;
 
-    const effectiveUserId = userId || sessionToken;
-
-    if (action === 'update_profile' && effectiveUserId) {
-      const updated = await OmniMailRepository.updateUserProfile(effectiveUserId, { name, phone });
-
-      // Try syncing with Supabase profiles table
-      try {
-        const supabase = await createClient();
-        await supabase
-          .from('profiles')
-          .update({ name, phone, updated_at: new Date().toISOString() })
-          .eq('id', effectiveUserId);
-      } catch {}
-
+    if (action === 'update_profile') {
+      // Must use authenticated user ID from session. Never trust client-provided userId.
+      const userId = auth.profile.id;
+      const updated = await OmniMailRepository.updateUserProfile(userId, { name, phone });
       return NextResponse.json({ success: true, user: updated });
     }
 
