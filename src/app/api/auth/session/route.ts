@@ -33,17 +33,13 @@ export async function GET(request: Request) {
     } catch {}
   }
 
-  // 3. Fallback to requested role (demo switcher testing)
+  // 3. Fallback to requested role if explicitly requested (e.g. demo role switcher)
   if (!user && requestedRole) {
     const targetId = requestedRole === 'admin' ? 'user-admin-1' : 'user-demo-1';
     user = await OmniMailRepository.getCurrentUser(targetId);
   }
 
-  // 4. Default demo user for development/preview if no session cookie exists
-  if (!user && !sessionToken) {
-    user = await OmniMailRepository.getCurrentUser('user-demo-1');
-  }
-
+  // If no active session or requested role, return user: null
   return NextResponse.json({ user });
 }
 

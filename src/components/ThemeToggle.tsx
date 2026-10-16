@@ -38,7 +38,7 @@ function subscribe(callback: () => void) {
   };
 }
 
-export const ThemeToggle: React.FC = () => {
+export const ThemeToggle: React.FC<{ className?: string }> = ({ className = '' }) => {
   const theme = useSyncExternalStore(subscribe, getThemeSnapshot, getServerSnapshot);
 
   const toggleTheme = () => {
@@ -61,7 +61,7 @@ export const ThemeToggle: React.FC = () => {
     <button
       onClick={toggleTheme}
       type="button"
-      className="relative flex items-center justify-center w-9 h-9 rounded-[11px] border border-[var(--line)] bg-[var(--bg-3)] text-[var(--t1)] hover:text-[var(--t0)] hover:border-[var(--line-2)] transition-all cursor-pointer select-none active:scale-95"
+      className={`relative flex items-center justify-center w-10 h-10 rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-all cursor-pointer select-none active:scale-95 shadow-xs ${className}`}
       title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
       aria-label="Toggle theme"
     >

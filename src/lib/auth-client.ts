@@ -16,9 +16,11 @@ export async function clientSignOut(options?: { redirectTo?: string; showToast?:
     // 1. Invalidate session on server
     await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
 
-    // 2. Clear client cookies
-    document.cookie = 'omnimail_session=; path=/; max-age=0; SameSite=Lax';
-    document.cookie = 'omnimail_role=; path=/; max-age=0; SameSite=Lax';
+    // 2. Clear all client cookies
+    document.cookie = 'omnimail_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0; SameSite=Lax';
+    document.cookie = 'omnimail_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0; SameSite=Lax';
+    document.cookie = 'sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0; SameSite=Lax';
+    document.cookie = 'sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0; SameSite=Lax';
 
     // 3. Clear session storage credentials
     try {

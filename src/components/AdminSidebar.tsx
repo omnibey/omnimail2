@@ -1,25 +1,82 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   Users, Mail, MessageSquare, 
   CreditCard, Coins, BarChart3, Settings, 
   FileText, ArrowLeft, LogOut, ShieldCheck,
-  Activity, Menu, X
+  Activity, X, PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import { clientSignOut } from '@/lib/auth-client';
 
 export const AdminSidebar: React.FC = () => {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Default to false so the sidebar is open by default
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  
+  // Ref to prevent instant re-opening right after clicking collapse button
+  const isManualCollapsingRef = useRef(false);
+
+  // Restore collapsed state from localStorage (default to false if not set)
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('omnimail_admin_sidebar_collapsed');
+      if (stored !== null) {
+        setDesktopCollapsed(stored === 'true');
+      } else {
+        setDesktopCollapsed(false);
+      }
+    } catch {}
+  }, []);
 
   // Close mobile drawer on route change
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
+
+  // When user hovers over collapsed sidebar, expand it and KEEP it expanded!
+  const handleMouseEnter = () => {
+    if (isManualCollapsingRef.current) return;
+    if (desktopCollapsed) {
+      setDesktopCollapsed(false);
+      try {
+        localStorage.setItem('omnimail_admin_sidebar_collapsed', 'false');
+      } catch {}
+    }
+  };
+
+  // Toggle collapsed state and persist to localStorage
+  const handleToggleCollapse = () => {
+    isManualCollapsingRef.current = true;
+    setTimeout(() => {
+      isManualCollapsingRef.current = false;
+    }, 400);
+
+    setDesktopCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('omnimail_admin_sidebar_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Listen for sidebar toggle event dispatched from Navbar
+  useEffect(() => {
+    const handleToggle = () => {
+      if (window.innerWidth < 768) {
+        setMobileOpen((prev) => !prev);
+      } else {
+        handleToggleCollapse();
+      }
+    };
+    window.addEventListener('omnimail:toggle-admin-sidebar', handleToggle);
+    return () => window.removeEventListener('omnimail:toggle-admin-sidebar', handleToggle);
+  }, []);
 
   const dashboardLinks = [
     { label: 'Analytics Dashboard', href: '/admin', icon: BarChart3, badge: 'Live' },
@@ -36,156 +93,197 @@ export const AdminSidebar: React.FC = () => {
     { label: 'Gateway Settings', href: '/admin/settings', icon: Settings },
   ];
 
-  const activeLink = [...dashboardLinks, ...managementLinks].find((l) => l.href === pathname);
-
   const handleSignOut = async () => {
     setIsSigningOut(true);
     setMobileOpen(false);
     await clientSignOut({ redirectTo: '/' });
   };
 
-  const renderNavItems = (isMobile: boolean = false) => (
-    <div className="flex-1 flex flex-col justify-between">
-      <div className="space-y-5">
-        {/* Admin Badge Header */}
-        <div className="rounded-[14px] border border-[#f7b84e]/30 bg-[#f7b84e]/10 p-3.5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[#f7b84e] text-black font-extrabold text-sm shadow-md shadow-[#f7b84e]/20">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-xs font-extrabold text-[var(--t0)]">
-                OmniBey Admin
+  const renderNavContent = (isMobile: boolean = false) => {
+    const isCollapsed = !isMobile && desktopCollapsed;
+
+    return (
+      <div className="flex-1 flex flex-col justify-between h-full overflow-hidden">
+        <div className="space-y-4">
+          
+          {/* Header section with active Side View toggle button */}
+          {isCollapsed ? (
+            <div className="flex flex-col items-center gap-2 pb-2 border-b border-[var(--line)]">
+              <div 
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f7b84e] text-black font-extrabold text-sm shadow-md shadow-[#f7b84e]/20 cursor-pointer" 
+                title="OmniBey Admin (Root Authority) — Click or hover to expand"
+                onClick={handleToggleCollapse}
+              >
+                <ShieldCheck className="h-5 w-5" />
               </div>
-              <div className="truncate text-[11px] text-[#f7b84e] font-semibold flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#f7b84e] animate-pulse" />
-                Root Authority
+              <button
+                type="button"
+                onClick={handleToggleCollapse}
+                title="Expand sidebar"
+                aria-label="Expand sidebar"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--bg-2)] hover:bg-[var(--bg-3)] text-[#f7b84e] transition-all cursor-pointer active:scale-95 shadow-xs"
+              >
+                <PanelLeftOpen className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-[14px] border border-[#f7b84e]/30 bg-[#f7b84e]/10 p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#f7b84e] text-black font-extrabold text-sm shadow-md shadow-[#f7b84e]/20">
+                    <ShieldCheck className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1 whitespace-nowrap overflow-hidden">
+                    <div className="truncate text-xs font-extrabold text-[var(--t0)]">
+                      OmniBey Admin
+                    </div>
+                    <div className="truncate text-[11px] text-[#f7b84e] font-semibold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#f7b84e] animate-pulse" />
+                      Root Authority
+                    </div>
+                  </div>
+                </div>
+
+                {/* Active Side View Button to Collapse */}
+                {!isMobile && (
+                  <button
+                    type="button"
+                    onClick={handleToggleCollapse}
+                    title="Collapse sidebar"
+                    aria-label="Collapse sidebar"
+                    className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-[#f7b84e]/20 transition-colors cursor-pointer shrink-0"
+                  >
+                    <PanelLeftClose className="w-4 h-4 text-[#f7b84e]" />
+                  </button>
+                )}
               </div>
             </div>
+          )}
+
+          {/* Dashboards Category */}
+          <div>
+            {!isCollapsed && (
+              <div className="px-3 pb-2 text-[10.5px] font-extrabold tracking-wider uppercase text-[var(--t2)] whitespace-nowrap">
+                Dashboards
+              </div>
+            )}
+            <nav className="space-y-1">
+              {dashboardLinks.map((link) => {
+                const Icon = link.icon;
+                const isActive = pathname === link.href;
+
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    title={isCollapsed ? `${link.label}${link.badge ? ` (${link.badge})` : ''}` : undefined}
+                    onClick={() => isMobile && setMobileOpen(false)}
+                    className={`flex items-center transition-all ${
+                      isCollapsed
+                        ? 'h-10 w-10 mx-auto justify-center rounded-xl relative'
+                        : 'justify-between px-3 py-2 rounded-[11px] text-[13px] font-semibold'
+                    } ${
+                      isActive
+                        ? 'bg-[var(--acc-soft)] text-[var(--acc)] font-bold shadow-xs ring-1 ring-[var(--acc)]/30'
+                        : 'text-[var(--t1)] hover:bg-[var(--bg-3)] hover:text-[var(--t0)]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[var(--acc)]' : 'text-[var(--t2)]'}`} />
+                      {!isCollapsed && <span className="truncate whitespace-nowrap">{link.label}</span>}
+                    </div>
+                    {!isCollapsed && link.badge && (
+                      <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded-[6px] bg-[var(--acc-soft)] text-[var(--acc)] border border-[var(--acc)]/30 shrink-0">
+                        {link.badge}
+                      </span>
+                    )}
+                    {isCollapsed && link.badge && (
+                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[var(--acc)] ring-2 ring-[var(--bg-1)]" />
+                    )}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+
+          {isCollapsed && <div className="w-8 mx-auto border-t border-[var(--line)]" />}
+
+          {/* Management Category */}
+          <div>
+            {!isCollapsed && (
+              <div className="px-3 pb-2 text-[10.5px] font-extrabold tracking-wider uppercase text-[var(--t2)] whitespace-nowrap">
+                Operations & Control
+              </div>
+            )}
+            <nav className="space-y-1">
+              {managementLinks.map((link) => {
+                const Icon = link.icon;
+                const isActive = pathname === link.href;
+
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    title={isCollapsed ? link.label : undefined}
+                    onClick={() => isMobile && setMobileOpen(false)}
+                    className={`flex items-center transition-all ${
+                      isCollapsed
+                        ? 'h-10 w-10 mx-auto justify-center rounded-xl'
+                        : 'justify-between px-3 py-2 rounded-[11px] text-[13px] font-semibold'
+                    } ${
+                      isActive
+                        ? 'bg-[var(--acc-soft)] text-[var(--acc)] font-bold shadow-xs ring-1 ring-[var(--acc)]/30'
+                        : 'text-[var(--t1)] hover:bg-[var(--bg-3)] hover:text-[var(--t0)]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[var(--acc)]' : 'text-[var(--t2)]'}`} />
+                      {!isCollapsed && <span className="truncate whitespace-nowrap">{link.label}</span>}
+                    </div>
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
         </div>
 
-        {/* Dashboards Category */}
-        <div>
-          <div className="px-3 pb-2 text-[10.5px] font-extrabold tracking-wider uppercase text-[var(--t2)]">
-            Dashboards
-          </div>
-          <nav className="space-y-1">
-            {dashboardLinks.map((link) => {
-              const Icon = link.icon;
-              const isActive = pathname === link.href;
-
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => isMobile && setMobileOpen(false)}
-                  className={`flex items-center justify-between px-3 py-2 rounded-[11px] text-[13px] font-semibold transition-all ${
-                    isActive
-                      ? 'bg-[var(--acc-soft)] text-[var(--acc)] font-bold shadow-sm'
-                      : 'text-[var(--t1)] hover:bg-[var(--bg-3)] hover:text-[var(--t0)]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-[var(--acc)]' : 'text-[var(--t2)]'}`} />
-                    <span>{link.label}</span>
-                  </div>
-                  {link.badge && (
-                    <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded-[6px] bg-[var(--acc-soft)] text-[var(--acc)] border border-[var(--acc)]/30">
-                      {link.badge}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* Management Category */}
-        <div>
-          <div className="px-3 pb-2 text-[10.5px] font-extrabold tracking-wider uppercase text-[var(--t2)]">
-            Operations & Control
-          </div>
-          <nav className="space-y-1">
-            {managementLinks.map((link) => {
-              const Icon = link.icon;
-              const isActive = pathname === link.href;
-
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => isMobile && setMobileOpen(false)}
-                  className={`flex items-center justify-between px-3 py-2 rounded-[11px] text-[13px] font-semibold transition-all ${
-                    isActive
-                      ? 'bg-[var(--acc-soft)] text-[var(--acc)] font-bold shadow-sm'
-                      : 'text-[var(--t1)] hover:bg-[var(--bg-3)] hover:text-[var(--t0)]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-[var(--acc)]' : 'text-[var(--t2)]'}`} />
-                    <span>{link.label}</span>
-                  </div>
-                </Link>
-              );
-            })}
-          </nav>
+        {/* Bottom actions: Switch to User and active Sign Out */}
+        <div className="pt-4 border-t border-[var(--line)] space-y-1.5 mt-6">
+          <Link
+            href="/dashboard"
+            title={isCollapsed ? "Switch to User View" : undefined}
+            onClick={() => isMobile && setMobileOpen(false)}
+            className={`flex items-center transition-colors ${
+              isCollapsed
+                ? 'h-10 w-10 mx-auto justify-center rounded-xl text-[var(--t1)] hover:text-[var(--t0)] hover:bg-[var(--bg-3)]'
+                : 'gap-2.5 px-3 py-2 rounded-[11px] text-xs font-semibold text-[var(--t1)] hover:text-[var(--t0)] hover:bg-[var(--bg-3)]'
+            }`}
+          >
+            <ArrowLeft className="w-4 h-4 shrink-0" />
+            {!isCollapsed && <span className="whitespace-nowrap truncate">Switch to User View</span>}
+          </Link>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            title={isCollapsed ? "Sign Out Admin" : undefined}
+            disabled={isSigningOut}
+            className={`w-full flex items-center transition-colors cursor-pointer disabled:opacity-50 text-left border border-transparent ${
+              isCollapsed
+                ? 'h-10 w-10 mx-auto justify-center rounded-xl text-[var(--bad)] hover:bg-[var(--bad-soft)]'
+                : 'gap-2.5 px-3 py-2 rounded-[11px] text-xs font-semibold text-[var(--bad)] hover:bg-[var(--bad-soft)] hover:border-[var(--bad)]/25'
+            }`}
+          >
+            <LogOut className="w-4 h-4 shrink-0" />
+            {!isCollapsed && <span className="whitespace-nowrap truncate">{isSigningOut ? 'Signing out...' : 'Sign Out Admin'}</span>}
+          </button>
         </div>
       </div>
-
-      {/* Bottom actions: Switch to User and active Sign Out */}
-      <div className="pt-4 border-t border-[var(--line)] space-y-1.5 mt-6">
-        <Link
-          href="/dashboard"
-          onClick={() => isMobile && setMobileOpen(false)}
-          className="flex items-center gap-2.5 px-3 py-2 rounded-[11px] text-xs font-semibold text-[var(--t1)] hover:text-[var(--t0)] hover:bg-[var(--bg-3)] transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Switch to User View</span>
-        </Link>
-        <button
-          type="button"
-          onClick={handleSignOut}
-          disabled={isSigningOut}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[11px] text-xs font-semibold text-[var(--bad)] hover:bg-[var(--bad-soft)] transition-colors cursor-pointer disabled:opacity-50 text-left border border-transparent hover:border-[var(--bad)]/25"
-        >
-          <LogOut className="w-3.5 h-3.5 shrink-0" />
-          <span>{isSigningOut ? 'Signing out...' : 'Sign Out Admin'}</span>
-        </button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>
-      {/* Mobile Top Bar with Hamburger Trigger (< md) */}
-      <div className="md:hidden sticky top-16 z-30 flex items-center justify-between px-4 py-2.5 bg-[var(--bg-1)] border-b border-[var(--line)] backdrop-blur-md">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#f7b84e] text-black font-extrabold text-xs shadow-sm">
-            <ShieldCheck className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="text-xs font-bold text-[var(--t0)] flex items-center gap-1.5">
-              <span>{activeLink?.label || 'Admin Suite'}</span>
-              <span className="text-[10px] font-mono font-bold text-[#f7b84e] bg-[#f7b84e]/10 border border-[#f7b84e]/20 px-1.5 py-0.2 rounded-[4px]">
-                Root
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setMobileOpen(true)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-[10px] bg-[var(--bg-2)] border border-[var(--line)] text-xs font-bold text-[var(--t0)] hover:bg-[var(--bg-3)] transition-all active:scale-95 shadow-sm cursor-pointer"
-          aria-label="Toggle admin navigation"
-        >
-          <Menu className="w-4 h-4 text-[#f7b84e]" />
-          <span>Admin Menu</span>
-        </button>
-      </div>
-
-      {/* Mobile Slide-Over Drawer Modal */}
+      {/* Mobile Slide-Over Drawer Modal (< md) */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden flex">
           {/* Backdrop */}
@@ -215,14 +313,19 @@ export const AdminSidebar: React.FC = () => {
               </button>
             </div>
 
-            {renderNavItems(true)}
+            {renderNavContent(true)}
           </div>
         </div>
       )}
 
-      {/* Desktop Persistent Sidebar (>= md) */}
-      <aside className="hidden md:flex w-64 shrink-0 border-r border-[var(--line)] bg-[var(--bg-1)] flex-col justify-between p-4 transition-colors">
-        {renderNavItems(false)}
+      {/* Desktop Persistent Collapsible Sidebar (>= md) */}
+      <aside 
+        onMouseEnter={handleMouseEnter}
+        className={`hidden md:flex ${
+          desktopCollapsed ? 'w-16 px-2' : 'w-64 px-3.5'
+        } shrink-0 border-r border-[var(--line)] bg-[var(--bg-1)] flex-col justify-between py-4 transition-all duration-300 ease-in-out select-none`}
+      >
+        {renderNavContent(false)}
       </aside>
     </>
   );

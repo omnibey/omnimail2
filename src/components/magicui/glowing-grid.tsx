@@ -42,11 +42,11 @@ export function GlowingGrid({
     const container = containerRef.current;
     if (!container) return;
 
-    // Set initial centered mouse position
+    // Set initial centered mouse position with soft ambient opacity
     const rect = container.getBoundingClientRect();
     container.style.setProperty('--mouse-x', `${rect.width / 2}px`);
     container.style.setProperty('--mouse-y', `${Math.min(rect.height * 0.35, 260)}px`);
-    container.style.setProperty('--mouse-opacity', '0.75');
+    container.style.setProperty('--mouse-opacity', '0.35');
 
     const handlePointerMove = (e: PointerEvent) => {
       const currentRect = container.getBoundingClientRect();
@@ -62,13 +62,13 @@ export function GlowingGrid({
       ) {
         container.style.setProperty('--mouse-x', `${x}px`);
         container.style.setProperty('--mouse-y', `${y}px`);
-        container.style.setProperty('--mouse-opacity', '1');
+        container.style.setProperty('--mouse-opacity', '0.5');
       }
     };
 
     const handlePointerLeave = () => {
-      // Softly fall back to ambient state
-      container.style.setProperty('--mouse-opacity', '0.5');
+      // Softly fall back to low ambient state
+      container.style.setProperty('--mouse-opacity', '0.2');
     };
 
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
@@ -87,16 +87,16 @@ export function GlowingGrid({
       style={
         {
           '--glow-radius': `${glowRadius}px`,
-          '--mouse-opacity': '0.7',
+          '--mouse-opacity': '0.35',
         } as React.CSSProperties
       }
       {...props}
     >
-      {/* 1. LAYER ONE: Passive Baseline Grid */}
+      {/* 1. LAYER ONE: Passive Baseline Grid (Soft & Low-contrast) */}
       <svg
         aria-hidden="true"
         className={cn(
-          'pointer-events-none absolute inset-0 h-full w-full opacity-40 transition-opacity duration-300',
+          'pointer-events-none absolute inset-0 h-full w-full opacity-15 dark:opacity-20 transition-opacity duration-300',
           className
         )}
         style={{
@@ -124,35 +124,35 @@ export function GlowingGrid({
         <rect width="100%" height="100%" strokeWidth={0} fill={`url(#${patternId})`} />
       </svg>
 
-      {/* 2. LAYER TWO: Ambient Reactive Mouse Torch Flare */}
+      {/* 2. LAYER TWO: Ambient Reactive Mouse Torch Flare (Light, Airy Glow) */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 transition-opacity duration-500 ease-out"
         style={{
-          opacity: 'var(--mouse-opacity, 0.7)',
+          opacity: 'var(--mouse-opacity, 0.35)',
           background:
-            'radial-gradient(circle var(--glow-radius, 380px) at var(--mouse-x, 50%) var(--mouse-y, 35%), rgba(124, 92, 255, 0.22) 0%, rgba(99, 102, 241, 0.12) 35%, rgba(56, 189, 248, 0.05) 60%, transparent 80%)',
+            'radial-gradient(circle var(--glow-radius, 380px) at var(--mouse-x, 50%) var(--mouse-y, 35%), rgba(124, 92, 255, 0.08) 0%, rgba(99, 102, 241, 0.04) 40%, rgba(56, 189, 248, 0.02) 65%, transparent 80%)',
         }}
       />
 
-      {/* 3. LAYER THREE: Glowing High-Luminance Neon Grid revealed by cursor */}
+      {/* 3. LAYER THREE: Glowing High-Luminance Neon Grid revealed softly by cursor */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 transition-opacity duration-300"
         style={{
-          opacity: 'var(--mouse-opacity, 0.7)',
+          opacity: 'var(--mouse-opacity, 0.35)',
           maskImage:
-            'radial-gradient(circle var(--glow-radius, 380px) at var(--mouse-x, 50%) var(--mouse-y, 35%), black 20%, rgba(0,0,0,0.4) 50%, transparent 85%)',
+            'radial-gradient(circle var(--glow-radius, 380px) at var(--mouse-x, 50%) var(--mouse-y, 35%), rgba(0,0,0,0.65) 15%, rgba(0,0,0,0.2) 50%, transparent 85%)',
           WebkitMaskImage:
-            'radial-gradient(circle var(--glow-radius, 380px) at var(--mouse-x, 50%) var(--mouse-y, 35%), black 20%, rgba(0,0,0,0.4) 50%, transparent 85%)',
+            'radial-gradient(circle var(--glow-radius, 380px) at var(--mouse-x, 50%) var(--mouse-y, 35%), rgba(0,0,0,0.65) 15%, rgba(0,0,0,0.2) 50%, transparent 85%)',
         }}
       >
         <svg className="h-full w-full">
           <defs>
             <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#7c5cff" />
-              <stop offset="50%" stopColor="#6366F1" />
-              <stop offset="100%" stopColor="#38bdf8" />
+              <stop offset="0%" stopColor="#818cf8" stopOpacity="0.32" />
+              <stop offset="50%" stopColor="#a5b4fc" stopOpacity="0.22" />
+              <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.18" />
             </linearGradient>
 
             <pattern
@@ -167,28 +167,28 @@ export function GlowingGrid({
                 d={`M.5 ${gridSize}V.5H${gridSize}`}
                 fill="none"
                 stroke={`url(#${gradientId})`}
-                strokeWidth="1.25"
+                strokeWidth="0.75"
               />
-              {/* Intersection Micro-sparks */}
-              <circle cx={gridSize} cy="0" r="1.5" fill="#a78bfa" opacity="0.7" />
-              <circle cx="0" cy={gridSize} r="1.5" fill="#38bdf8" opacity="0.7" />
+              {/* Intersection Micro-sparks (delicate & muted) */}
+              <circle cx={gridSize} cy="0" r="1" fill="#a78bfa" opacity="0.25" />
+              <circle cx="0" cy={gridSize} r="1" fill="#38bdf8" opacity="0.25" />
             </pattern>
           </defs>
 
           <rect width="100%" height="100%" strokeWidth={0} fill={`url(#${glowPatternId})`} />
 
-          {/* Random Glowing Cells in Cursor Area */}
+          {/* Random Glowing Cells in Cursor Area (very light pastel fill & outline) */}
           {squares && (
             <svg x={-1} y={-1} className="overflow-visible">
               {squares.map(([sqX, sqY], idx) => (
                 <rect
-                  strokeWidth="1"
+                  strokeWidth="0.75"
                   key={`glow-sq-${sqX}-${sqY}-${idx}`}
                   width={gridSize - 1}
                   height={gridSize - 1}
                   x={sqX * gridSize + 1}
                   y={sqY * gridSize + 1}
-                  className="fill-[#7c5cff]/20 stroke-[#818cf8]/60 transition-all duration-300"
+                  className="fill-[#818cf8]/[0.04] stroke-[#818cf8]/25 transition-all duration-300"
                 />
               ))}
             </svg>
@@ -196,10 +196,10 @@ export function GlowingGrid({
         </svg>
       </div>
 
-      {/* 4. Ambient Top Diffuse Bulb */}
+      {/* 4. Ambient Top Diffuse Bulb (Lightened) */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-4 h-[420px] w-[640px] -translate-x-1/2 rounded-full opacity-40 blur-3xl"
+        className="pointer-events-none absolute left-1/2 top-4 h-[420px] w-[640px] -translate-x-1/2 rounded-full opacity-20 blur-3xl"
         style={{
           background: 'radial-gradient(ellipse at center, var(--acc-soft), transparent 70%)',
         }}
