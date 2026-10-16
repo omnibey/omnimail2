@@ -3,19 +3,29 @@
 import React, { useState } from 'react';
 import { ShieldAlert, User, Check, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { isDemoModeClient } from '@/lib/demo';
 
 export const DemoSwitcher: React.FC = () => {
   const [role, setRole] = useState<'user' | 'admin'>('user');
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
+  // If Demo Mode is explicitly disabled or in production, NEVER render the Demo Switcher
+  if (!isDemoModeClient()) {
+    return null;
+  }
+
   const switchRole = (newRole: 'user' | 'admin') => {
     setRole(newRole);
-    const targetUserId = newRole === 'admin' ? 'user-admin-1' : 'user-demo-1';
-    document.cookie = `omnimail_session=${targetUserId}; path=/; max-age=86400`;
-    document.cookie = `omnimail_role=${newRole}; path=/; max-age=86400`;
+    const demoSessionId = newRole === 'admin' ? 'user-admin-1' : 'user-demo-1';
+    document.cookie = `omnimail_session=${demoSessionId}; path=/; max-age=86400; SameSite=Lax`;
+    document.cookie = `omnimail_role=${newRole}; path=/; max-age=86400; SameSite=Lax`;
     setOpen(false);
-    window.location.href = newRole === 'admin' ? '/admin' : '/dashboard';
+    if (newRole === 'admin') {
+      router.push('/admin');
+    } else {
+      router.push('/dashboard');
+    }
   };
 
   return (
@@ -24,7 +34,7 @@ export const DemoSwitcher: React.FC = () => {
         <div className="bg-[var(--bg-2)] border border-[var(--line)] rounded-[18px] shadow-[var(--shadow)] p-4 w-72 animate-slide-up text-[var(--t0)]">
           <div className="flex items-center justify-between pb-2 border-b border-[var(--line)]">
             <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-[var(--t2)]">
-              Role Testing Switcher
+              Role Testing Switcher (Demo Only)
             </span>
             <button
               onClick={() => setOpen(false)}
@@ -73,21 +83,21 @@ export const DemoSwitcher: React.FC = () => {
           </div>
 
           <div className="mt-3 pt-2 border-t border-[var(--line)] text-[10px] text-[var(--t2)] font-mono">
-            Simulates RBAC session transitions.
+            Isolated development testing tool.
           </div>
         </div>
       ) : (
         <button
           onClick={() => setOpen(true)}
           className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-2)] text-[var(--t0)] shadow-[var(--shadow)] text-xs font-bold hover:scale-105 active:scale-95 transition-all border border-[var(--line)] cursor-pointer"
-          title="Switch Active Testing Role"
+          title="Switch Active Testing Role (Demo Mode Only)"
         >
           {role === 'admin' ? (
             <ShieldAlert className="w-3.5 h-3.5 text-[#f7b84e]" />
           ) : (
             <User className="w-3.5 h-3.5 text-[var(--acc)]" />
           )}
-          <span>Role: {role === 'admin' ? 'Admin' : 'User'}</span>
+          <span>Demo Role: {role === 'admin' ? 'Admin' : 'User'}</span>
         </button>
       )}
     </div>

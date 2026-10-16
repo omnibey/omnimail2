@@ -1,21 +1,25 @@
 import { NextResponse } from 'next/server';
 import { OmniMailRepository } from '@/lib/store/repository';
+import { getAuthenticatedUser } from '@/lib/auth-server';
 
 /**
  * Developer API v1: Programmatic Temporary Email & OTP Extraction
- * Requires 'Authorization: Bearer omni_live_...' in production
  */
 export async function POST(request: Request) {
   try {
-    const authHeader = request.headers.get('authorization');
-    // Developer API key check placeholder
-    const apiKey = authHeader ? authHeader.replace(/^Bearer\s+/i, '') : null;
+    const auth = await getAuthenticatedUser();
+    if (!auth) {
+      return NextResponse.json(
+        { status: 'error', error: 'Authentication required. Bearer API key or active session required.' },
+        { status: 401 }
+      );
+    }
 
     const body = await request.json().catch(() => ({}));
     const { prefix, tag, expiresInMinutes } = body;
 
     const email = await OmniMailRepository.generateEmailAddress(
-      'user-demo-1',
+      auth.profile.id,
       prefix,
       tag || 'Developer API Integration',
       expiresInMinutes || 60
@@ -32,7 +36,6 @@ export async function POST(request: Request) {
       },
       meta: {
         api_version: 'v1',
-        authenticated_with: apiKey ? 'API_KEY' : 'DEMO_SESSION',
         rate_limit_remaining: 59,
       }
     });
@@ -43,6 +46,14 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
+  const auth = await getAuthenticatedUser();
+  if (!auth) {
+    return NextResponse.json(
+      { status: 'error', error: 'Authentication required.' },
+      { status: 401 }
+    );
+  }
+
   const { searchParams } = new URL(request.url);
   const emailId = searchParams.get('id');
 
@@ -58,6 +69,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ status: 'error', error: 'Email address not found or expired.' }, { status: 404 });
   }
 
+  // Must own the email or be admin
+  if (email.user_id !== auth.profile.id && auth.profile.role !== 'admin') {
+    return NextResponse.json({ status: 'error', error: 'Forbidden. You do not own this mailbox.' }, { status: 403 });
+  }
+
   const messages = await OmniMailRepository.getMessagesByEmail(emailId);
 
   return NextResponse.json({
@@ -71,11 +87,10 @@ export async function GET(request: Request) {
         id: m.id,
         sender: m.sender,
         subject: m.subject,
-        detected_otp: m.detected_otp || null,
-        otp_confidence: m.otp_confidence || null,
+        detected_otp: m.detected_otp,
+        otp_confidence: m.otp_confidence,
         received_at: m.received_at,
-        body_text: m.body_text,
       })),
-    },
+    }
   });
 }

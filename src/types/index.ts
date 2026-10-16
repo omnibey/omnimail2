@@ -133,7 +133,16 @@ export interface CreditPackage {
   created_at: string;
 }
 
-export type CreditTxType = 'purchase' | 'bonus' | 'usage' | 'refund' | 'admin_adjustment';
+export interface DollarRateConfig {
+  rate: number; // e.g. 125 (1 USD = 125 BDT)
+  currency: string;
+  min_deposit_usd: number; // minimum 5 USD deposit
+  credits_per_usd: number; // 100 credits per USD
+  credits_per_otp: number; // 5 credits per OTP
+  updated_at: string;
+}
+
+export type CreditTxType = 'purchase' | 'bonus' | 'usage' | 'spend' | 'refund' | 'admin_adjustment';
 
 export interface CreditTransaction {
   id: string;
@@ -288,4 +297,6 @@ export interface AdminUsersResponse {
     total_credits: number;
   };
 }
+
+export type AdminUsersOverviewResponse = Omit<AdminUsersResponse, 'success'>;
 

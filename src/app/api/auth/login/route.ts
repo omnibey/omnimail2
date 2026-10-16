@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server';
 import { OmniMailRepository } from '@/lib/store/repository';
 import { createClient } from '@/lib/supabase/server';
 import { parseUserAgentAndIp } from '@/lib/device-parser';
+import { isDemoMode } from '@/lib/demo';
 
 export async function POST(request: Request) {
   try {
     const deviceInfo = parseUserAgentAndIp(request);
-    const { email, password } = await request.json();
+    const body = await request.json().catch(() => ({}));
+    const { email, password } = body;
 
     if (!email || !password) {
       return NextResponse.json(
@@ -16,8 +18,15 @@ export async function POST(request: Request) {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const role = cleanEmail === 'admin@omnibey.com' ? 'admin' : 'user';
-    let authenticatedUser = null;
+    const demo = isDemoMode();
+    let authenticatedUser: {
+      id: string;
+      name: string;
+      email: string;
+      role: 'user' | 'admin';
+      credits: number;
+      account_status: string;
+    } | null = null;
     let authSource = 'none';
 
     // 1. Try Supabase Auth
@@ -31,44 +40,44 @@ export async function POST(request: Request) {
       if (!signInError && signInData?.user) {
         authSource = 'supabase';
         const sbUser = signInData.user;
+        let userRole: 'user' | 'admin' = cleanEmail === 'admin@omnibey.com' ? 'admin' : 'user';
+        let accountStatus = 'active';
+
+        // Check authoritative profile in database
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role, account_status, credits')
+          .eq('id', sbUser.id)
+          .maybeSingle();
+
+        if (profile) {
+          userRole = profile.role === 'admin' ? 'admin' : 'user';
+          accountStatus = profile.account_status || 'active';
+        }
+
         const userName =
           sbUser.user_metadata?.full_name ||
           sbUser.user_metadata?.name ||
           cleanEmail.split('@')[0];
 
-        let repoUser = await OmniMailRepository.getUserByEmail(cleanEmail);
-        if (!repoUser) {
-          repoUser = await OmniMailRepository.createUser(
-            userName,
-            cleanEmail,
-            role,
-            password,
-            sbUser.id
-          );
-        } else {
-          repoUser.id = sbUser.id;
-          repoUser.password = password;
-        }
-
         authenticatedUser = {
-          ...repoUser,
           id: sbUser.id,
-          last_login_device: deviceInfo.device_type,
-          last_login_browser: deviceInfo.browser,
-          last_login_os: deviceInfo.os,
-          last_login_ip: deviceInfo.ip_address,
-          last_login_at: new Date().toISOString(),
+          name: userName,
+          email: cleanEmail,
+          role: userRole,
+          credits: profile?.credits ?? 15,
+          account_status: accountStatus,
         };
 
-        // Sync with public.profiles table in Supabase
+        // Sync telemetry to database profiles table
         try {
           await supabase.from('profiles').upsert(
             {
               id: sbUser.id,
               name: userName,
               email: cleanEmail,
-              role: role,
-              account_status: 'active',
+              role: userRole,
+              account_status: accountStatus,
               last_login_device: deviceInfo.device_type,
               last_login_browser: deviceInfo.browser,
               last_login_os: deviceInfo.os,
@@ -78,18 +87,40 @@ export async function POST(request: Request) {
             },
             { onConflict: 'id' }
           );
-        } catch {}
+        } catch {
+          // Non-critical profile sync fallback
+        }
+      } else if (!demo) {
+        // If not in demo mode, strictly reject if Supabase authentication fails
+        return NextResponse.json(
+          { success: false, error: signInError?.message || 'Invalid email or password.' },
+          { status: 401 }
+        );
       }
     } catch (sbErr) {
-      console.warn('[Login] Supabase auth notice:', sbErr);
+      if (!demo) {
+        console.error('[Login] Supabase auth error:', sbErr);
+        return NextResponse.json(
+          { success: false, error: 'Authentication service unavailable.' },
+          { status: 500 }
+        );
+      }
     }
 
-    // 2. If not authenticated via Supabase, verify with local store
-    if (!authenticatedUser) {
+    // 2. Demo fallback only when demo mode is active
+    if (!authenticatedUser && demo) {
       const localVerification = await OmniMailRepository.verifyUserPassword(cleanEmail, password);
       if (localVerification.valid && localVerification.user) {
         authSource = 'local';
-        authenticatedUser = localVerification.user;
+        const user = localVerification.user;
+        authenticatedUser = {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          credits: user.credits,
+          account_status: user.account_status,
+        };
         await OmniMailRepository.updateUserProfile(authenticatedUser.id, {
           last_login_device: deviceInfo.device_type,
           last_login_browser: deviceInfo.browser,
@@ -98,7 +129,6 @@ export async function POST(request: Request) {
           last_login_at: new Date().toISOString(),
         });
       } else {
-        // Authentication strictly FAILED - return 401 unauthorized
         const failureReason =
           localVerification.error || 'Incorrect email or password. Please verify your credentials.';
         return NextResponse.json(
@@ -106,6 +136,13 @@ export async function POST(request: Request) {
           { status: 401 }
         );
       }
+    }
+
+    if (!authenticatedUser) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid email or password.' },
+        { status: 401 }
+      );
     }
 
     // Check account status

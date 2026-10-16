@@ -25,7 +25,24 @@ export default function PaymentsPage() {
   };
 
   useEffect(() => {
-    fetchPayments();
+    let ignore = false;
+    async function init() {
+      try {
+        const res = await fetch('/api/payments/history');
+        const data = await res.json();
+        if (!ignore) {
+          if (data.payments) setPayments(data.payments);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Failed to load payments:', err);
+        if (!ignore) setLoading(false);
+      }
+    }
+    init();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   return (

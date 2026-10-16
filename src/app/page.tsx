@@ -11,12 +11,10 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { QuickEmailGenerator } from '@/components/QuickEmailGenerator';
-import { GridPattern } from '@/components/magicui/grid-pattern';
 import { GlowingGrid } from '@/components/magicui/glowing-grid';
 import { ShimmerButton } from '@/components/magicui/shimmer-button';
 import { NumberTicker } from '@/components/magicui/number-ticker';
 import { HyperText } from '@/components/magicui/hyper-text';
-import { TextAnimate } from '@/components/magicui/text-animate';
 import { EmailAddress, CompatibilityItem, CreditPackage } from '@/types';
 
 export default function HomePage() {
@@ -26,11 +24,17 @@ export default function HomePage() {
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
 
-  // Redirect to /login if OAuth returned an error directly to the home page (e.g. Supabase fallback)
+  // Handle OAuth code or errors returned directly to the home page (e.g. Supabase fallback)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       const url = new URL(window.location.href);
+      const code = url.searchParams.get('code');
+      if (code) {
+        window.location.replace(`/api/auth/callback${url.search}`);
+        return;
+      }
+
       const errorParam = url.searchParams.get('error') || '';
       const errorDesc = url.searchParams.get('error_description') || '';
       const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
@@ -40,7 +44,7 @@ export default function HomePage() {
 
       const finalError = errorDesc || hashDesc || errorParam || hashError;
       if (finalError) {
-        window.location.href = `/login?error=${encodeURIComponent(finalError)}`;
+        window.location.replace(`/login?error=${encodeURIComponent(finalError)}`);
       }
     } catch {}
   }, []);
@@ -49,7 +53,7 @@ export default function HomePage() {
     fetch('/api/email/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: 'user-demo-1', customPrefix: 'quickbox47' }),
+      body: JSON.stringify({ customPrefix: 'quickbox47' }),
     })
       .then((res) => res.json())
       .then((data) => {
@@ -137,7 +141,7 @@ export default function HomePage() {
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </Link>
-              <Link href="/signup">
+              <Link href="/register">
                 <button
                   type="button"
                   className="flex items-center gap-2 px-6 py-3.5 rounded-[13px] border border-[var(--line-2)] bg-[var(--bg-1)] hover:bg-[var(--bg-3)] text-[var(--t0)] font-bold text-sm shadow-sm hover:border-[#6366F1]/50 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
@@ -153,7 +157,7 @@ export default function HomePage() {
           <div className="max-w-2xl mx-auto">
             <QuickEmailGenerator
               initialEmail={initialEmail}
-              userId="user-demo-1"
+              userId={initialEmail?.user_id}
               onEmailChanged={(email) => setInitialEmail(email)}
             />
           </div>
@@ -581,7 +585,7 @@ export default function HomePage() {
             Generate unlimited temporary mailboxes, extract verification codes in seconds, and keep spam away forever.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
-            <Link href="/signup">
+            <Link href="/register">
               <ShimmerButton
                 background="#ffffff"
                 shimmerColor="#7c5cff"

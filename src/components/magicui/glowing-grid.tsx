@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useId, useRef, useEffect, useState } from 'react';
+import React, { useId, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 export interface GlowingGridProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -35,10 +35,8 @@ export function GlowingGrid({
   const glowPatternId = `grid-glow-${baseId}`;
   const gradientId = `grid-gradient-${baseId}`;
   const containerRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     const container = containerRef.current;
     if (!container) return;
 

@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import { OmniMailRepository } from '@/lib/store/repository';
+import { requireAdmin } from '@/lib/auth-server';
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAdmin();
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
+
     const { id } = await params;
     const userDetail = await OmniMailRepository.getAdminUserDetail(id);
 
@@ -28,15 +34,20 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAdmin();
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
+
     const { id } = await params;
-    const body = await request.json();
-    const { status, role, adminId } = body;
+    const body = await request.json().catch(() => ({}));
+    const { status, role } = body;
 
     if (status) {
       if (status !== 'active' && status !== 'suspended') {
         return NextResponse.json({ success: false, error: 'Invalid status value' }, { status: 400 });
       }
-      await OmniMailRepository.updateUserStatus(id, status, adminId || 'user-admin-1');
+      await OmniMailRepository.updateUserStatus(id, status, auth.profile.id);
     }
 
     if (role) {
@@ -64,8 +75,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAdmin();
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
+
     const { id } = await params;
-    const deleted = await OmniMailRepository.deleteUser(id, 'user-admin-1');
+    const deleted = await OmniMailRepository.deleteUser(id, auth.profile.id);
 
     if (!deleted) {
       return NextResponse.json({ success: false, error: 'User could not be deleted' }, { status: 400 });

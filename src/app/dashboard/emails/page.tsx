@@ -37,7 +37,24 @@ export default function EmailsPage() {
   };
 
   useEffect(() => {
-    fetchEmails();
+    let ignore = false;
+    async function init() {
+      try {
+        const res = await fetch('/api/email/generate');
+        const data = await res.json();
+        if (!ignore) {
+          if (data.emails) setEmails(data.emails);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Failed to fetch mailboxes:', err);
+        if (!ignore) setLoading(false);
+      }
+    }
+    init();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const handleCopy = (id: string, email: string) => {

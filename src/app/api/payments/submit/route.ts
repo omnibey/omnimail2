@@ -1,16 +1,19 @@
 import { NextResponse } from 'next/server';
 import { PaymentService } from '@/services/payment/PaymentService';
+import { requireAuthenticatedUser } from '@/lib/auth-server';
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireAuthenticatedUser();
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
+
     const body = await request.json().catch(() => ({}));
-    const { userId, packageId, paymentMethod, senderIdentifier, transactionId, screenshotBase64, screenshotName } = body;
+    const { packageId, paymentMethod, senderIdentifier, transactionId, screenshotBase64, screenshotName } = body;
 
-    const cookieHeader = request.headers.get('cookie') || '';
-    const match = cookieHeader.match(/omnimail_session=([^;]+)/);
-    const sessionUserId = match ? decodeURIComponent(match[1].trim()) : null;
-
-    const effectiveUserId = userId || sessionUserId || 'user-demo-1';
+    // Server-derived user ID: strictly ignore any client-provided userId
+    const effectiveUserId = auth.profile.id;
 
     const payment = await PaymentService.validateAndSubmit(effectiveUserId, {
       package_id: packageId,

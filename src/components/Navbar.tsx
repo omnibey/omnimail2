@@ -52,7 +52,6 @@ export const Navbar: React.FC = () => {
   const notificationRef = useRef<HTMLDivElement>(null);
 
   const pathname = usePathname();
-  const router = useRouter();
 
   const isAdminPage = pathname?.startsWith('/admin');
   const isDashboardPage = pathname?.startsWith('/dashboard');
@@ -215,7 +214,7 @@ export const Navbar: React.FC = () => {
     }
   };
 
-  const isAuthPage = pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password';
+  const isAuthPage = pathname === '/login' || pathname === '/register' || pathname === '/signup' || pathname === '/forgot-password';
   if (isAuthPage) return null;
 
   // Active display name and email matching TailAdmin reference
@@ -559,7 +558,7 @@ export const Navbar: React.FC = () => {
                     Sign In
                   </Button>
                 </Link>
-                <Link href="/signup">
+                <Link href="/register">
                   <ShimmerButton
                     background="var(--acc)"
                     shimmerColor="#ffffff"

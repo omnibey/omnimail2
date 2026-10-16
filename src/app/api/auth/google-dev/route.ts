@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server';
 import { OmniMailRepository } from '@/lib/store/repository';
 import { createClient } from '@/lib/supabase/server';
+import { isDemoMode } from '@/lib/demo';
 
 export async function POST(request: Request) {
+  // TEST 12: When DEMO_MODE is false, demo authentication must not work!
+  if (!isDemoMode()) {
+    return NextResponse.json(
+      { success: false, error: 'Simulated authentication is strictly disabled in production / non-demo mode.' },
+      { status: 403 }
+    );
+  }
+
   try {
     const body = await request.json().catch(() => ({}));
     const email = (body.email || 'user@omnibey.com').trim().toLowerCase();
@@ -13,7 +22,7 @@ export async function POST(request: Request) {
     // 1. Ensure user exists in local repository
     const user = await OmniMailRepository.createUser(name, email, role);
 
-    // 2. Try to synchronize with Supabase profiles table if accessible
+    // 2. Synchronize with Supabase profiles table if accessible
     try {
       const supabase = await createClient();
       await supabase.from('profiles').upsert(
@@ -30,8 +39,8 @@ export async function POST(request: Request) {
         },
         { onConflict: 'id' }
       );
-    } catch (supabaseErr) {
-      console.warn('[Google Auth Sync] Supabase profile sync notice:', supabaseErr);
+    } catch {
+      // Demo fallback
     }
 
     const destination = role === 'admin' ? '/admin' : '/dashboard';
@@ -47,7 +56,6 @@ export async function POST(request: Request) {
       redirectTo: destination,
     });
 
-    // Set secure authentication cookies
     response.cookies.set('omnimail_session', user.id, {
       path: '/',
       maxAge: 86400 * 7,
@@ -62,14 +70,8 @@ export async function POST(request: Request) {
     });
 
     return response;
-  } catch (error) {
-    console.error('[Google Auth Error]:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Google authentication failed',
-      },
-      { status: 500 }
-    );
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Demo login error';
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

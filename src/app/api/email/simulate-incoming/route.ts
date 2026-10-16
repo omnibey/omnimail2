@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { OmniMailRepository } from '@/lib/store/repository';
+import { requireAuthenticatedUser } from '@/lib/auth-server';
 
 const SAMPLE_TEMPLATES = [
   {
@@ -34,7 +35,12 @@ const SAMPLE_TEMPLATES = [
 
 export async function POST(request: Request) {
   try {
-    const { emailAddressId, customService } = await request.json();
+    const auth = await requireAuthenticatedUser();
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
+
+    const { emailAddressId, customService } = await request.json().catch(() => ({}));
 
     if (!emailAddressId) {
       return NextResponse.json({ success: false, error: 'emailAddressId is required' }, { status: 400 });
@@ -43,6 +49,11 @@ export async function POST(request: Request) {
     const email = await OmniMailRepository.getEmailAddressById(emailAddressId);
     if (!email) {
       return NextResponse.json({ success: false, error: 'Email address not found' }, { status: 404 });
+    }
+
+    // Ownership check
+    if (email.user_id !== auth.profile.id && auth.profile.role !== 'admin') {
+      return NextResponse.json({ success: false, error: 'Forbidden. You do not own this mailbox.' }, { status: 403 });
     }
 
     // Pick template or random
@@ -66,11 +77,11 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message,
-      detectedOtp: message?.detected_otp,
-      info: `Simulated incoming message from ${template.service} with code ${randomOtp}`,
+      extractedOtp: message?.detected_otp,
+      service: template.service,
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Failed to simulate email';
+    const message = err instanceof Error ? err.message : 'Simulation failed';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import type { AnimationItem } from 'lottie-web';
 
 export interface LottieLoaderProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -21,7 +22,7 @@ export const LottieLoader: React.FC<LottieLoaderProps> = ({
   const [lottieLoaded, setLottieLoaded] = useState(false);
 
   useEffect(() => {
-    let animInstance: any = null;
+    let animInstance: AnimationItem | null = null;
     let isCancelled = false;
 
     async function initLottie() {

@@ -34,9 +34,12 @@ export const AdminSidebar: React.FC = () => {
   }, []);
 
   // Close mobile drawer on route change
-  useEffect(() => {
+  // Close mobile drawer on route change
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
     setMobileOpen(false);
-  }, [pathname]);
+  }
 
   // When user hovers over collapsed sidebar, expand it and KEEP it expanded!
   const handleMouseEnter = () => {

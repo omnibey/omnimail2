@@ -43,9 +43,11 @@ export const DashboardSidebar: React.FC<SidebarProps> = ({
   }, []);
 
   // Close mobile drawer on route change
-  useEffect(() => {
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
     setMobileOpen(false);
-  }, [pathname]);
+  }
 
   // When user hovers over collapsed sidebar, expand it and KEEP it expanded!
   const handleMouseEnter = () => {

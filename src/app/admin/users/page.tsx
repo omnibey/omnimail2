@@ -117,7 +117,6 @@ export default function AdminUsersPage() {
         body: JSON.stringify({
           userId: target.id,
           amount: Number(adjustAmount),
-          adminId: 'user-admin-1',
           reason: adjustReason || 'Administrative adjustment',
         }),
       });
@@ -155,7 +154,7 @@ export default function AdminUsersPage() {
       const res = await fetch(`/api/admin/users/${user.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: nextStatus, adminId: 'user-admin-1' }),
+        body: JSON.stringify({ status: nextStatus }),
       });
 
       const data = await res.json();
@@ -188,8 +187,6 @@ export default function AdminUsersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymentId,
-          adminId: 'user-admin-1',
-          adminEmail: 'admin@omnibey.com',
         }),
       });
 

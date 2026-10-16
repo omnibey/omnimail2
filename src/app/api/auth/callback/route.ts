@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     ? (process.env.NEXT_PUBLIC_APP_URL || 'https://mail.omnibey.com')
     : origin;
 
-  const next = rawNext && rawNext !== '/' && rawNext !== '/login' && rawNext !== '/signup' ? rawNext : '/dashboard';
+  const next = rawNext && rawNext !== '/' && rawNext !== '/login' && rawNext !== '/signup' && rawNext !== '/register' ? rawNext : '/dashboard';
 
   if (error) {
     console.warn('[OAuth Callback Error from Provider]:', error, errorDescription);

@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { OmniMailRepository } from '@/lib/store/repository';
+import { requireAdmin } from '@/lib/auth-server';
 
 export async function GET(request: Request) {
   try {
+    const auth = await requireAdmin();
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || undefined;
     const status = searchParams.get('status') || undefined;

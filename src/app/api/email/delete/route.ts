@@ -1,20 +1,31 @@
 import { NextResponse } from 'next/server';
 import { OmniMailRepository } from '@/lib/store/repository';
+import { requireAuthenticatedUser } from '@/lib/auth-server';
 
 export async function POST(request: Request) {
   try {
-    const { emailAddressId, userId } = await request.json();
+    const auth = await requireAuthenticatedUser();
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
+
+    const { emailAddressId } = await request.json().catch(() => ({}));
 
     if (!emailAddressId) {
       return NextResponse.json({ success: false, error: 'emailAddressId is required' }, { status: 400 });
     }
 
-    const cookieHeader = request.headers.get('cookie') || '';
-    const match = cookieHeader.match(/omnimail_session=([^;]+)/);
-    const sessionUserId = match ? decodeURIComponent(match[1].trim()) : null;
+    const email = await OmniMailRepository.getEmailAddressById(emailAddressId);
+    if (!email) {
+      return NextResponse.json({ success: false, error: 'Could not find email address' }, { status: 404 });
+    }
 
-    const effectiveUserId = userId || sessionUserId || 'user-demo-1';
-    const success = await OmniMailRepository.deleteEmailAddress(emailAddressId, effectiveUserId);
+    // Ownership verification: Normal users can only delete their own mailboxes
+    if (email.user_id !== auth.profile.id && auth.profile.role !== 'admin') {
+      return NextResponse.json({ success: false, error: 'Forbidden. You do not own this mailbox.' }, { status: 403 });
+    }
+
+    const success = await OmniMailRepository.deleteEmailAddress(emailAddressId, email.user_id);
 
     if (!success) {
       return NextResponse.json({ success: false, error: 'Could not delete email address' }, { status: 404 });

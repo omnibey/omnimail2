@@ -1,21 +1,25 @@
 import { NextResponse } from 'next/server';
 import { OmniMailRepository } from '@/lib/store/repository';
+import { requireAuthenticatedUser } from '@/lib/auth-server';
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const cookieHeader = request.headers.get('cookie') || '';
-  const match = cookieHeader.match(/omnimail_session=([^;]+)/);
-  const sessionUserId = match ? decodeURIComponent(match[1].trim()) : null;
+export async function GET() {
+  const auth = await requireAuthenticatedUser();
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
 
-  const userId = searchParams.get('userId') || sessionUserId || 'user-demo-1';
+  // Server-derived user ID: NEVER trust query params for userId
+  const userId = auth.profile.id;
 
-  const payments = await OmniMailRepository.getPaymentsByUser(userId);
-  const transactions = await OmniMailRepository.getTransactionsByUser(userId);
-  const user = await OmniMailRepository.getCurrentUser(userId);
+  const [payments, transactions, user] = await Promise.all([
+    OmniMailRepository.getPaymentsByUser(userId),
+    OmniMailRepository.getTransactionsByUser(userId),
+    OmniMailRepository.getCurrentUser(userId),
+  ]);
 
   return NextResponse.json({
     payments,
     transactions,
-    credits: user?.credits || 0,
+    credits: user?.credits ?? auth.profile.credits ?? 0,
   });
 }

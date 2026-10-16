@@ -1,28 +1,40 @@
 import { NextResponse } from 'next/server';
 import { OmniMailRepository } from '@/lib/store/repository';
+import { requireAdmin } from '@/lib/auth-server';
 
 export async function POST(request: Request) {
   try {
-    const { paymentId, adminId, reason, adminEmail } = await request.json();
-
-    if (!paymentId) {
-      return NextResponse.json({ success: false, error: 'paymentId is required' }, { status: 400 });
+    // 1. Authorize admin strictly on server
+    const auth = await requireAdmin();
+    if (auth instanceof NextResponse) {
+      return auth;
     }
 
-    const effectiveAdminId = adminId || 'user-admin-1';
-    const effectiveAdminEmail = adminEmail || 'admin@omnibey.com';
+    const body = await request.json().catch(() => ({}));
+    const { paymentId, reason } = body;
+
+    if (!paymentId) {
+      return NextResponse.json(
+        { success: false, error: 'paymentId is required' },
+        { status: 400 }
+      );
+    }
+
+    // Server-derived admin identity: NEVER trust client-provided adminId or adminEmail
+    const adminId = auth.profile.id;
+    const adminEmail = auth.profile.email;
 
     const result = await OmniMailRepository.rejectPayment(
       paymentId,
-      effectiveAdminId,
+      adminId,
       reason || 'Transaction could not be verified against merchant statements.',
-      effectiveAdminEmail
+      adminEmail
     );
 
     return NextResponse.json({
       success: true,
       payment: result.payment,
-      message: 'Payment rejected and reason recorded. Audit log and Telegram notification dispatched.',
+      message: 'Payment rejected and reason recorded. Audit log dispatched.',
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to reject payment';

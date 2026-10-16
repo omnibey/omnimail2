@@ -3,11 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Inbox, RefreshCw, Trash2, Mail, Clock, 
-  Send, ShieldCheck, Eye, Search 
+  Send, Eye, Search 
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { OTPBadge } from '@/components/OTPBadge';
 import { InboxSplitSkeleton } from '@/components/ui/Skeleton';
 import { Message, EmailAddress } from '@/types';
@@ -59,8 +58,8 @@ export default function InboxPage() {
         if (!ignore) {
           if (msgsRes.messages) {
             setMessages(msgsRes.messages);
-            if (msgsRes.messages.length > 0 && !selectedMessage) {
-              setSelectedMessage(msgsRes.messages[0]);
+            if (msgsRes.messages.length > 0) {
+              setSelectedMessage((prev) => prev ?? msgsRes.messages[0]);
             }
           }
           if (emailsRes.emails) setEmails(emailsRes.emails);
