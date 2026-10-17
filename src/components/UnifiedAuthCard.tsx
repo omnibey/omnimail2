@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -47,12 +47,18 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
 
   const errorParam = searchParams.get('error');
   const errorDescParam = searchParams.get('error_description');
-  const initialOauthError = errorDescParam
+  const rawOauthError = errorDescParam
     ? decodeURIComponent(errorDescParam.replace(/\+/g, ' '))
     : errorParam
-    ? errorParam === 'oauth_failed'
+    ? decodeURIComponent(errorParam.replace(/\+/g, ' '))
+    : null;
+
+  const initialOauthError = rawOauthError
+    ? rawOauthError === 'oauth_failed'
       ? 'Google authentication was cancelled or interrupted. You can sign in using the Google selector.'
-      : decodeURIComponent(errorParam.replace(/\+/g, ' '))
+      : (rawOauthError.toLowerCase().includes('pkce') || rawOauthError.toLowerCase().includes('code verifier'))
+      ? 'Google sign-in session expired or was started in a different browser. Please click "Continue with Google" to try again.'
+      : rawOauthError
     : null;
 
   // Read stored credentials once on initial mount
@@ -137,6 +143,74 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
   };
 
   const activeError = errorMsg ?? (activeTab === 'login' ? initialOauthError : null);
+
+  // ---------------------------------------------
+  // CLIENT-SIDE OAUTH CODE EXCHANGE FALLBACK
+  // ---------------------------------------------
+  const oauthCode = searchParams.get('code');
+
+  useEffect(() => {
+    if (!oauthCode) return;
+
+    let isMounted = true;
+    const processOauthCode = async () => {
+      try {
+        setIsLoading(true);
+        setRedirectMessage('Completing Google authentication...');
+        setIsRedirecting(true);
+
+        const supabase = createClient();
+        const { data, error } = await supabase.auth.exchangeCodeForSession(oauthCode);
+
+        if (error) {
+          throw error;
+        }
+
+        if (data?.user) {
+          // Sync user session and profile with server repository
+          const res = await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'sync_oauth',
+              user: data.user,
+            }),
+          });
+
+          const syncData = await res.json().catch(() => ({}));
+          const target = syncData.redirect || targetRoute || '/dashboard';
+
+          fireRealisticConfetti();
+          toast.success('Signed in with Google!', {
+            description: `Welcome, ${data.user.user_metadata?.full_name || data.user.email}!`,
+          });
+
+          if (isMounted) {
+            router.replace(target);
+          }
+        }
+      } catch (err: unknown) {
+        console.warn('[Client OAuth Exchange Notice]:', err);
+        if (isMounted) {
+          setIsLoading(false);
+          setIsRedirecting(false);
+          const msg = err instanceof Error ? err.message : 'Google authentication exchange failed';
+          const friendlyMsg =
+            msg.toLowerCase().includes('code verifier') || msg.toLowerCase().includes('pkce')
+              ? 'Google sign-in session expired. Please click "Continue with Google" to sign in again.'
+              : msg;
+          setErrorMsg(friendlyMsg);
+          toast.error('Google Sign In', { description: friendlyMsg });
+        }
+      }
+    };
+
+    processOauthCode();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [oauthCode, router, targetRoute]);
 
   // ---------------------------------------------
   // LOGIN SUBMIT
@@ -293,6 +367,9 @@ export function UnifiedAuthCard({ initialTab = 'login' }: UnifiedAuthCardProps) 
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
+          queryParams: {
+            prompt: 'select_account',
+          },
         },
       });
 

@@ -7,8 +7,10 @@ export async function middleware(request: NextRequest) {
 
   // 1. OAuth Code Forwarder:
   // If Supabase/Google redirects to root (/) or auth page with ?code=, forward immediately to callback route
+  // unless explicitly flagged for client-side fallback exchange.
   const code = searchParams.get('code');
-  if (code && (pathname === '/' || pathname === '/login' || pathname === '/register' || pathname === '/signup')) {
+  const isFallbackClient = searchParams.get('fallback') === 'client';
+  if (code && !isFallbackClient && (pathname === '/' || pathname === '/login' || pathname === '/register' || pathname === '/signup')) {
     const callbackUrl = new URL('/api/auth/callback', request.url);
     callbackUrl.search = request.nextUrl.search;
     return NextResponse.redirect(callbackUrl);

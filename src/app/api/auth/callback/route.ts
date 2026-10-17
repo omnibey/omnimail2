@@ -67,15 +67,34 @@ export async function GET(request: Request) {
           path: '/',
           maxAge: 86400 * 7,
           sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
         });
         response.cookies.set('omnimail_role', role, {
           path: '/',
           maxAge: 86400 * 7,
           sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
         });
         return response;
       } else if (exchangeError) {
         console.error('[OAuth Callback] Code exchange error:', exchangeError.message);
+
+        // If the server exchange failed due to PKCE code verifier not found in server cookies
+        // (common in SSR cross-site redirects on mobile Chrome / iOS Safari),
+        // redirect to /login with fallback=client so the browser client (which holds document.cookie)
+        // can execute supabase.auth.exchangeCodeForSession(code) directly!
+        const isPkceError =
+          exchangeError.message.toLowerCase().includes('code verifier') ||
+          exchangeError.message.toLowerCase().includes('pkce');
+
+        if (isPkceError) {
+          const clientFallback = new URL('/login', canonicalOrigin);
+          clientFallback.searchParams.set('code', code);
+          clientFallback.searchParams.set('fallback', 'client');
+          if (rawNext) clientFallback.searchParams.set('next', next);
+          return NextResponse.redirect(clientFallback.toString());
+        }
+
         return NextResponse.redirect(
           `${canonicalOrigin}/login?error=${encodeURIComponent(exchangeError.message)}`
         );
